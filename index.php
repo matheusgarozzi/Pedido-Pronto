@@ -1,3 +1,4 @@
+<?php
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
@@ -410,3 +411,4 @@
     <script src="script.js"></script>
   </body>
 </html>
+?>
