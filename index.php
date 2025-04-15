@@ -1,284 +1,11 @@
 <?php
-
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
     <title>PedidoPronto - Sistema de Pedidos</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background-color: #f0f0f0;
-        margin: 0;
-      }
-      .header {
-        background: #333;
-        color: white;
-        padding: 10px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .header h1 {
-        margin: 0;
-        font-size: 20px;
-      }
-      .header nav {
-        display: flex;
-        gap: 15px;
-      }
-      .header button {
-        background: #555;
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        cursor: pointer;
-        border-radius: 4px;
-      }
-      .header button:hover {
-        background: #777;
-      }
-      .kanban {
-        display: flex;
-        gap: 20px;
-        padding: 20px;
-        justify-content: center;
-      }
-      .column {
-        background: white;
-        padding: 50px;
-        border-radius: 8px;
-        width: 200px;
-        min-height: 700px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-      .task {
-        padding: 10px;
-        margin: 5px 0;
-        border-radius: 5px;
-        cursor: grab;
-        color: white;
-        font-weight: bold;
-      }
-      .recebido {
-        background: #ffcc00;
-      }
-      .preparo {
-        background: #ff8000;
-      }
-      .pronto {
-        background: #00cc66;
-      }
-      .entregue {
-        background: #0088cc;
-      }
-      .modal {
-        display: none;
-        position: fixed;
-        z-index: 1;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.4);
-      }
-      .modal-content {
-        background-color: #fefefe;
-        margin: 15% auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 80%;
-        max-width: 500px;
-        border-radius: 8px;
-      }
-      .close {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-      }
-      .close:hover {
-        color: black;
-      }
-      .form-group {
-        margin-bottom: 15px;
-      }
-      .form-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
-      }
-      .form-group input,
-      .form-group select,
-      .form-group textarea {
-        width: 100%;
-        padding: 8px;
-        box-sizing: border-box;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      .form-actions {
-        text-align: right;
-        margin-top: 20px;
-      }
-      .form-actions button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      .form-actions button[type="submit"] {
-        background-color: #4caf50;
-        color: white;
-      }
-      .form-actions button[type="button"] {
-        background-color: #f44336;
-        color: white;
-        margin-right: 10px;
-      }
-      .caixa-info {
-        background-color: #fff;
-        padding: 15px;
-        margin: 20px;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-      .caixa-info h2 {
-        margin-top: 0;
-        color: #333;
-      }
-      .caixa-info p {
-        margin: 5px 0;
-      }
-      .caixa-aberto {
-        color: #4caf50;
-        font-weight: bold;
-      }
-      .caixa-fechado {
-        color: #f44336;
-        font-weight: bold;
-      }
-      .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-      }
-      .login-box {
-        background: white;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-        width: 100%;
-        max-width: 400px;
-      }
-      .login-box h2 {
-        margin-top: 0;
-        text-align: center;
-      }
-      .login-box input {
-        width: 100%;
-        padding: 10px;
-        margin: 10px 0;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-      }
-      .login-box button {
-        width: 100%;
-        padding: 10px;
-        background-color: #4caf50;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-      }
-      .login-box button:hover {
-        background-color: #45a049;
-      }
-      .hidden {
-        display: none;
-      }
-      .cardapio-item {
-        background: white;
-        padding: 15px;
-        margin: 10px 0;
-        border-radius: 5px;
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-      }
-      .cardapio-item h3 {
-        margin-top: 0;
-      }
-      .cardapio-item p {
-        margin-bottom: 0;
-      }
-      .cardapio-actions {
-        margin-top: 10px;
-      }
-      .cardapio-actions button {
-        padding: 5px 10px;
-        margin-right: 5px;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
-      }
-      .editar-btn {
-        background-color: #2196F3;
-        color: white;
-      }
-      .excluir-btn {
-        background-color: #f44336;
-        color: white;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-      }
-      th, td {
-        padding: 12px;
-        text-align: left;
-        border-bottom: 1px solid #ddd;
-      }
-      th {
-        background-color: #f2f2f2;
-      }
-      tr:hover {
-        background-color: #f5f5f5;
-      }
-      .tab-container {
-        margin: 20px;
-      }
-      .tab-buttons {
-        display: flex;
-        margin-bottom: 10px;
-      }
-      .tab-button {
-        padding: 10px 20px;
-        background-color: #ddd;
-        border: none;
-        cursor: pointer;
-        margin-right: 5px;
-        border-radius: 5px 5px 0 0;
-      }
-      .tab-button.active {
-        background-color: #4caf50;
-        color: white;
-      }
-      .tab-content {
-        display: none;
-        background: white;
-        padding: 20px;
-        border-radius: 0 5px 5px 5px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      }
-      .tab-content.active {
-        display: block;
-      }
-    </style>
   </head>
   <body>
     <!-- Tela de Login -->
@@ -298,21 +25,41 @@
       <header class="header">
         <h1>PedidoPronto</h1>
         <nav>
-          <span id="userInfo" style="color: white; margin-right: 15px;"></span>
-          <button id="caixaBtn" onclick="abrirCaixaModal()">Abrir/Fechar Caixa</button>
-          <button id="historicoBtn" onclick="mostrarHistorico()">Histórico de Pedidos</button>
+          <span id="userInfo" style="color: white; margin-right: 15px"></span>
+          <button id="caixaBtn" onclick="abrirCaixaModal()">
+            Abrir/Fechar Caixa
+          </button>
+          <button id="historicoBtn" onclick="mostrarHistorico()">
+            Histórico de Pedidos
+          </button>
           <button id="cardapioBtn" onclick="mostrarCardapio()">Cardápio</button>
           <button id="clientesBtn" onclick="mostrarClientes()">Clientes</button>
-          <button id="funcionariosBtn" class="admin-only" onclick="mostrarFuncionarios()">Funcionários</button>
-          <button id="relatoriosBtn" class="admin-only" onclick="mostrarRelatorios()">Relatórios</button>
+          <button
+            id="funcionariosBtn"
+            class="admin-only"
+            onclick="mostrarFuncionarios()"
+          >
+            Funcionários
+          </button>
+          <button
+            id="relatoriosBtn"
+            class="admin-only"
+            onclick="mostrarRelatorios()"
+          >
+            Relatórios
+          </button>
           <button onclick="logout()">Sair</button>
         </nav>
       </header>
 
       <div class="tab-container">
         <div class="tab-buttons">
-          <button class="tab-button active" onclick="abrirTab('pedidosTab')">Pedidos</button>
-          <button class="tab-button" onclick="abrirTab('caixaTab')">Caixa</button>
+          <button class="tab-button active" onclick="abrirTab('pedidosTab')">
+            Pedidos
+          </button>
+          <button class="tab-button" onclick="abrirTab('caixaTab')">
+            Caixa
+          </button>
         </div>
 
         <!-- Aba de Pedidos -->
@@ -351,7 +98,9 @@
               <h3>Entregue</h3>
             </div>
           </div>
-          <button onclick="adicionarPedidoModal()" class="atendente-only">Adicionar Pedido</button>
+          <button onclick="adicionarPedidoModal()" class="atendente-only">
+            Adicionar Pedido
+          </button>
         </div>
 
         <!-- Aba de Caixa -->
@@ -359,7 +108,8 @@
           <div class="caixa-info">
             <h2>Situação do Caixa</h2>
             <p>
-              Status: <span id="caixa-status" class="caixa-fechado">FECHADO</span>
+              Status:
+              <span id="caixa-status" class="caixa-fechado">FECHADO</span>
             </p>
             <p>Saldo Inicial: R$ <span id="saldo-inicial">0,00</span></p>
             <p>Saldo Atual: R$ <span id="saldo-atual">0,00</span></p>
@@ -367,20 +117,26 @@
             <p>Total de Pedidos Hoje: <span id="total-pedidos">0</span></p>
             <p>Total em Vendas: R$ <span id="total-vendas">0,00</span></p>
           </div>
-          <button onclick="fecharCaixaDiario()" class="gerente-only">Fechar Caixa Diário</button>
+          <button onclick="fecharCaixaDiario()" class="gerente-only">
+            Fechar Caixa Diário
+          </button>
         </div>
 
         <!-- Aba de Cardápio -->
         <div id="cardapioTab" class="tab-content">
           <h2>Cardápio</h2>
-          <button onclick="adicionarItemCardapioModal()" class="gerente-only">Adicionar Item</button>
+          <button onclick="adicionarItemCardapioModal()" class="gerente-only">
+            Adicionar Item
+          </button>
           <div id="cardapioList"></div>
         </div>
 
         <!-- Aba de Clientes -->
         <div id="clientesTab" class="tab-content">
           <h2>Clientes Cadastrados</h2>
-          <button onclick="adicionarClienteModal()" class="atendente-only">Adicionar Cliente</button>
+          <button onclick="adicionarClienteModal()" class="atendente-only">
+            Adicionar Cliente
+          </button>
           <table id="clientesTable">
             <thead>
               <tr>
@@ -398,7 +154,9 @@
         <!-- Aba de Funcionários -->
         <div id="funcionariosTab" class="tab-content">
           <h2>Funcionários</h2>
-          <button onclick="adicionarFuncionarioModal()" class="admin-only">Adicionar Funcionário</button>
+          <button onclick="adicionarFuncionarioModal()" class="admin-only">
+            Adicionar Funcionário
+          </button>
           <table id="funcionariosTable">
             <thead>
               <tr>
@@ -454,12 +212,19 @@
       <!-- Modal para Adicionar Pedido -->
       <div id="pedidoModal" class="modal">
         <div class="modal-content">
-          <span class="close" onclick="fecharModal('pedidoModal')">&times;</span>
+          <span class="close" onclick="fecharModal('pedidoModal')"
+            >&times;</span
+          >
           <h2>Novo Pedido</h2>
           <form id="pedidoForm">
             <div class="form-group">
               <label for="clienteNome">Nome do Cliente</label>
-              <input type="text" id="clienteNome" required list="clientesList" />
+              <input
+                type="text"
+                id="clienteNome"
+                required
+                list="clientesList"
+              />
               <datalist id="clientesList"></datalist>
             </div>
             <div class="form-group">
@@ -479,7 +244,9 @@
               <select id="pedidoItem" class="pedido-item-select">
                 <option value="">Selecione um item</option>
               </select>
-              <button type="button" onclick="adicionarItemPedido()">Adicionar Item</button>
+              <button type="button" onclick="adicionarItemPedido()">
+                Adicionar Item
+              </button>
               <div id="itensPedido"></div>
               <input type="hidden" id="pedidoDescricao" required />
             </div>
@@ -515,7 +282,9 @@
       <!-- Modal para Adicionar Cliente -->
       <div id="clienteModal" class="modal">
         <div class="modal-content">
-          <span class="close" onclick="fecharModal('clienteModal')">&times;</span>
+          <span class="close" onclick="fecharModal('clienteModal')"
+            >&times;</span
+          >
           <h2>Novo Cliente</h2>
           <form id="clienteForm">
             <div class="form-group">
@@ -548,7 +317,9 @@
       <!-- Modal para Adicionar Item ao Cardápio -->
       <div id="cardapioModal" class="modal">
         <div class="modal-content">
-          <span class="close" onclick="fecharModal('cardapioModal')">&times;</span>
+          <span class="close" onclick="fecharModal('cardapioModal')"
+            >&times;</span
+          >
           <h2 id="cardapioModalTitle">Novo Item no Cardápio</h2>
           <form id="cardapioForm">
             <div class="form-group">
@@ -595,7 +366,9 @@
       <!-- Modal para Adicionar Funcionário -->
       <div id="funcionarioModal" class="modal">
         <div class="modal-content">
-          <span class="close" onclick="fecharModal('funcionarioModal')">&times;</span>
+          <span class="close" onclick="fecharModal('funcionarioModal')"
+            >&times;</span
+          >
           <h2 id="funcionarioModalTitle">Novo Funcionário</h2>
           <form id="funcionarioForm">
             <div class="form-group">
@@ -626,851 +399,16 @@
               <button type="button" onclick="fecharModal('funcionarioModal')">
                 Cancelar
               </button>
-              <button type="submit" id="funcionarioSubmit">Salvar Funcionário</button>
+              <button type="submit" id="funcionarioSubmit">
+                Salvar Funcionário
+              </button>
             </div>
           </form>
         </div>
       </div>
     </div>
 
-    <script>
-      // Dados do sistema
-      let pedidoCounter = 1;
-      let caixaAberto = false;
-      let saldoInicial = 0;
-      let saldoAtual = 0;
-      let dataAbertura = null;
-      let totalPedidosHoje = 0;
-      let totalVendasHoje = 0;
-      let usuarioLogado = null;
-      let editandoItemId = null;
-      let editandoFuncionarioId = null;
-      let itensPedidoSelecionados = [];
-      
-      // Dados iniciais
-      let clientesCadastrados = [
-        { id: 1, nome: "João Silva", telefone: "(11) 99999-9999", endereco: "Rua A, 123", pedidos: 5 },
-        { id: 2, nome: "Maria Souza", telefone: "(11) 98888-8888", endereco: "Rua B, 456", pedidos: 3 }
-      ];
-      
-      let cardapio = [
-        { id: 1, nome: "Hambúrguer Clássico", descricao: "Pão, hambúrguer, queijo, alface e tomate", preco: 25.90, categoria: "principal", disponivel: true },
-        { id: 2, nome: "Batata Frita", descricao: "Porção de batata frita crocante", preco: 12.50, categoria: "entrada", disponivel: true },
-        { id: 3, nome: "Refrigerante", descricao: "Lata 350ml", preco: 6.00, categoria: "bebida", disponivel: true },
-        { id: 4, nome: "Sorvete", descricao: "Casquinha com duas bolas", preco: 8.90, categoria: "sobremesa", disponivel: true }
-      ];
-      
-      let funcionarios = [
-        { id: 1, nome: "Admin", usuario: "admin", senha: "admin123", cargo: "admin", ativo: true },
-        { id: 2, nome: "Gerente", usuario: "gerente", senha: "gerente123", cargo: "gerente", ativo: true },
-        { id: 3, nome: "Atendente", usuario: "atendente", senha: "atendente123", cargo: "atendente", ativo: true }
-      ];
-      
-      let historicoPedidos = [];
-      let fechamentosCaixa = [];
-
-      // Funções de Login
-      document.getElementById("loginForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-        
-        const username = document.getElementById("username").value;
-        const password = document.getElementById("password").value;
-        
-        const funcionario = funcionarios.find(f => 
-          f.usuario === username && f.senha === password && f.ativo
-        );
-        
-        if (funcionario) {
-          usuarioLogado = funcionario;
-          iniciarSistema();
-        } else {
-          alert("Usuário ou senha incorretos!");
-        }
-      });
-      
-      function iniciarSistema() {
-        document.getElementById("loginScreen").classList.add("hidden");
-        document.getElementById("mainSystem").classList.remove("hidden");
-        
-        // Atualizar informações do usuário
-        document.getElementById("userInfo").textContent = `${usuarioLogado.nome} (${usuarioLogado.cargo})`;
-        
-        // Mostrar/ocultar funcionalidades baseadas no cargo
-        const adminElements = document.querySelectorAll('.admin-only');
-        const gerenteElements = document.querySelectorAll('.gerente-only');
-        const atendenteElements = document.querySelectorAll('.atendente-only');
-        
-        adminElements.forEach(el => el.style.display = usuarioLogado.cargo === 'admin' ? '' : 'none');
-        gerenteElements.forEach(el => el.style.display = (usuarioLogado.cargo === 'admin' || usuarioLogado.cargo === 'gerente') ? '' : 'none');
-        atendenteElements.forEach(el => el.style.display = (usuarioLogado.cargo === 'admin' || usuarioLogado.cargo === 'gerente' || usuarioLogado.cargo === 'atendente') ? '' : 'none');
-        
-        // Carregar dados iniciais
-        carregarClientes();
-        carregarCardapio();
-        carregarFuncionarios();
-        atualizarListaClientesAutocomplete();
-        carregarItensCardapioSelect();
-      }
-      
-      function logout() {
-        usuarioLogado = null;
-        document.getElementById("loginScreen").classList.remove("hidden");
-        document.getElementById("mainSystem").classList.add("hidden");
-        document.getElementById("loginForm").reset();
-      }
-
-      // Funções do Kanban
-      function allowDrop(event) {
-        event.preventDefault();
-      }
-
-      function drag(event) {
-        event.dataTransfer.setData("text", event.target.id);
-      }
-
-      function drop(event) {
-        event.preventDefault();
-        var data = event.dataTransfer.getData("text");
-        var task = document.getElementById(data);
-        event.target.appendChild(task);
-
-        // Atualiza a cor do pedido com base na fase
-        if (event.target.id === "recebido") {
-          task.className = "task recebido";
-        } else if (event.target.id === "preparo") {
-          task.className = "task preparo";
-        } else if (event.target.id === "pronto") {
-          task.className = "task pronto";
-        } else if (event.target.id === "entregue") {
-          task.className = "task entregue";
-          // Quando o pedido é marcado como entregue, adiciona o valor ao saldo atual
-          const valorPedido = parseFloat(task.getAttribute("data-valor"));
-          if (!isNaN(valorPedido)) {
-            saldoAtual += valorPedido;
-            totalVendasHoje += valorPedido;
-            atualizarInfoCaixa();
-            
-            // Atualizar histórico
-            const pedidoId = parseInt(task.id.replace("pedido", ""));
-            const pedido = historicoPedidos.find(p => p.id === pedidoId);
-            if (pedido) {
-              pedido.status = "entregue";
-              pedido.dataEntrega = new Date();
-            }
-          }
-        }
-      }
-
-      // Funções do Caixa
-      function abrirCaixaModal() {
-        const modal = document.getElementById("caixaModal");
-        const title = document.getElementById("caixaModalTitle");
-        const submitBtn = document.getElementById("caixaSubmit");
-
-        if (caixaAberto) {
-          title.textContent = "Fechar Caixa";
-          submitBtn.textContent = "Fechar Caixa";
-          document.getElementById("valorInicial").value = saldoInicial.toFixed(2);
-        } else {
-          title.textContent = "Abrir Caixa";
-          submitBtn.textContent = "Abrir Caixa";
-          document.getElementById("valorInicial").value = "";
-        }
-
-        modal.style.display = "block";
-      }
-
-      function fecharModal(modalId) {
-        document.getElementById(modalId).style.display = "none";
-        if (modalId === "pedidoModal") {
-          itensPedidoSelecionados = [];
-          document.getElementById("itensPedido").innerHTML = "";
-          document.getElementById("pedidoValor").value = "0.00";
-        }
-        if (modalId === "cardapioModal") {
-          editandoItemId = null;
-        }
-        if (modalId === "funcionarioModal") {
-          editandoFuncionarioId = null;
-        }
-      }
-
-      document.getElementById("caixaForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-
-        const valor = parseFloat(document.getElementById("valorInicial").value);
-
-        if (caixaAberto) {
-          // Fechar caixa
-          caixaAberto = false;
-          document.getElementById("caixa-status").textContent = "FECHADO";
-          document.getElementById("caixa-status").className = "caixa-fechado";
-          
-          // Registrar fechamento
-          const fechamento = {
-            data: new Date(),
-            saldoInicial: saldoInicial,
-            saldoFinal: saldoAtual,
-            totalPedidos: totalPedidosHoje,
-            totalVendas: totalVendasHoje,
-            responsavel: usuarioLogado.nome
-          };
-          fechamentosCaixa.push(fechamento);
-          
-          alert(`Caixa fechado com sucesso!\nSaldo Final: R$ ${saldoAtual.toFixed(2)}`);
-        } else {
-          // Abrir caixa
-          if (isNaN(valor) || valor <= 0) {
-            alert("Por favor, informe um valor válido maior que 0 para abrir o caixa.");
-            return;
-          }
-
-          caixaAberto = true;
-          saldoInicial = valor;
-          saldoAtual = valor;
-          dataAbertura = new Date();
-          totalPedidosHoje = 0;
-          totalVendasHoje = 0;
-
-          document.getElementById("caixa-status").textContent = "ABERTO";
-          document.getElementById("caixa-status").className = "caixa-aberto";
-          atualizarInfoCaixa();
-
-          alert("Caixa aberto com sucesso!");
-        }
-
-        fecharModal("caixaModal");
-      });
-
-      function fecharCaixaDiario() {
-        if (!caixaAberto) {
-          alert("O caixa já está fechado!");
-          return;
-        }
-        
-        if (confirm("Deseja realmente fechar o caixa diário? Esta ação registrará todas as movimentações do dia.")) {
-          // Registrar fechamento
-          const fechamento = {
-            data: new Date(),
-            saldoInicial: saldoInicial,
-            saldoFinal: saldoAtual,
-            totalPedidos: totalPedidosHoje,
-            totalVendas: totalVendasHoje,
-            responsavel: usuarioLogado.nome
-          };
-          fechamentosCaixa.push(fechamento);
-          
-          // Resetar caixa
-          caixaAberto = false;
-          saldoInicial = 0;
-          saldoAtual = 0;
-          dataAbertura = null;
-          totalPedidosHoje = 0;
-          totalVendasHoje = 0;
-          
-          document.getElementById("caixa-status").textContent = "FECHADO";
-          document.getElementById("caixa-status").className = "caixa-fechado";
-          atualizarInfoCaixa();
-          
-          alert("Caixa diário fechado com sucesso! Todas as movimentações foram registradas.");
-        }
-      }
-
-      function atualizarInfoCaixa() {
-        document.getElementById("saldo-inicial").textContent = saldoInicial.toFixed(2);
-        document.getElementById("saldo-atual").textContent = saldoAtual.toFixed(2);
-        document.getElementById("total-pedidos").textContent = totalPedidosHoje;
-        document.getElementById("total-vendas").textContent = totalVendasHoje.toFixed(2);
-
-        if (dataAbertura) {
-          const options = {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          };
-          document.getElementById("data-abertura").textContent = dataAbertura.toLocaleDateString("pt-BR", options);
-        } else {
-          document.getElementById("data-abertura").textContent = "-";
-        }
-      }
-
-      // Funções de Pedidos
-      function adicionarPedidoModal() {
-        if (!caixaAberto) {
-          alert("Por favor, abra o caixa antes de adicionar pedidos.");
-          return;
-        }
-
-        document.getElementById("pedidoForm").reset();
-        document.getElementById("pedidoModal").style.display = "block";
-      }
-
-      function adicionarItemPedido() {
-        const itemSelect = document.getElementById("pedidoItem");
-        const itemId = parseInt(itemSelect.value);
-        
-        if (!itemId) return;
-        
-        const item = cardapio.find(i => i.id === itemId);
-        if (!item) return;
-        
-        // Verificar se o item já foi adicionado
-        const itemExistente = itensPedidoSelecionados.find(i => i.id === item.id);
-        if (itemExistente) {
-          itemExistente.quantidade += 1;
-        } else {
-          itensPedidoSelecionados.push({
-            id: item.id,
-            nome: item.nome,
-            preco: item.preco,
-            quantidade: 1
-          });
-        }
-        
-        atualizarItensPedido();
-      }
-      
-      function atualizarItensPedido() {
-        const itensDiv = document.getElementById("itensPedido");
-        itensDiv.innerHTML = "";
-        
-        let valorTotal = 0;
-        let descricaoPedido = "";
-        
-        itensPedidoSelecionados.forEach(item => {
-          const itemDiv = document.createElement("div");
-          itemDiv.className = "cardapio-item";
-          itemDiv.innerHTML = `
-            <h3>${item.nome}</h3>
-            <p>Quantidade: ${item.quantidade}</p>
-            <p>Valor: R$ ${(item.preco * item.quantidade).toFixed(2)}</p>
-            <div class="cardapio-actions">
-              <button onclick="removerItemPedido(${item.id})" class="excluir-btn">Remover</button>
-            </div>
-          `;
-          itensDiv.appendChild(itemDiv);
-          
-          valorTotal += item.preco * item.quantidade;
-          descricaoPedido += `${item.quantidade}x ${item.nome}, `;
-        });
-        
-        // Remove a última vírgula
-        if (descricaoPedido.length > 0) {
-          descricaoPedido = descricaoPedido.slice(0, -2);
-        }
-        
-        document.getElementById("pedidoValor").value = valorTotal.toFixed(2);
-        document.getElementById("pedidoDescricao").value = descricaoPedido;
-      }
-      
-      function removerItemPedido(itemId) {
-        itensPedidoSelecionados = itensPedidoSelecionados.filter(item => item.id !== itemId);
-        atualizarItensPedido();
-      }
-
-      document.getElementById("pedidoForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-
-        const nomeCliente = document.getElementById("clienteNome").value;
-        const telefone = document.getElementById("clienteTelefone").value;
-        const endereco = document.getElementById("clienteEndereco").value;
-        const descricao = document.getElementById("pedidoDescricao").value;
-        const valor = parseFloat(document.getElementById("pedidoValor").value);
-        const tipo = document.getElementById("pedidoTipo").value;
-
-        // Verificar se há itens no pedido
-        if (itensPedidoSelecionados.length === 0) {
-          alert("Por favor, adicione pelo menos um item ao pedido.");
-          return;
-        }
-
-        // Adiciona o cliente à lista (simplificado)
-        if (nomeCliente && !clientesCadastrados.some(c => c.nome.toLowerCase() === nomeCliente.toLowerCase())) {
-          const novoCliente = {
-            id: clientesCadastrados.length > 0 ? Math.max(...clientesCadastrados.map(c => c.id)) + 1 : 1,
-            nome: nomeCliente,
-            telefone: telefone,
-            endereco: endereco,
-            pedidos: 1
-          };
-          clientesCadastrados.push(novoCliente);
-          carregarClientes();
-          atualizarListaClientesAutocomplete();
-        } else {
-          // Incrementa o número de pedidos do cliente
-          const cliente = clientesCadastrados.find(c => c.nome.toLowerCase() === nomeCliente.toLowerCase());
-          if (cliente) {
-            cliente.pedidos += 1;
-          }
-        }
-
-        // Cria o pedido no Kanban
-        let pedido = document.createElement("div");
-        pedido.className = "task recebido";
-        pedido.id = "pedido" + pedidoCounter;
-        pedido.draggable = true;
-        pedido.setAttribute("data-valor", valor);
-        pedido.ondragstart = drag;
-
-        // Adiciona informações ao pedido (aparecerão no hover)
-        pedido.title = `Cliente: ${nomeCliente}\nTelefone: ${telefone || "N/A"}\nTipo: ${tipo}\nValor: R$ ${valor.toFixed(2)}`;
-
-        if (tipo === "delivery") {
-          pedido.title += `\nEndereço: ${endereco || "N/A"}`;
-        }
-
-        pedido.textContent = `${nomeCliente}: ${descricao}`;
-        document.getElementById("recebido").appendChild(pedido);
-        
-        // Registrar no histórico
-        const novoPedido = {
-          id: pedidoCounter,
-          cliente: nomeCliente,
-          itens: [...itensPedidoSelecionados],
-          valor: valor,
-          tipo: tipo,
-          status: "recebido",
-          dataPedido: new Date(),
-          dataEntrega: null,
-          atendente: usuarioLogado.nome
-        };
-        historicoPedidos.push(novoPedido);
-        
-        pedidoCounter++;
-        totalPedidosHoje++;
-        atualizarInfoCaixa();
-
-        fecharModal("pedidoModal");
-      });
-
-      // Funções de Clientes
-      function mostrarClientes() {
-        abrirTab('clientesTab');
-      }
-      
-      function adicionarClienteModal() {
-        document.getElementById("clienteForm").reset();
-        document.getElementById("clienteModal").style.display = "block";
-      }
-      
-      document.getElementById("clienteForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-        
-        const nome = document.getElementById("novoClienteNome").value;
-        const telefone = document.getElementById("novoClienteTelefone").value;
-        const endereco = document.getElementById("novoClienteEndereco").value;
-        
-        const novoCliente = {
-          id: clientesCadastrados.length > 0 ? Math.max(...clientesCadastrados.map(c => c.id)) + 1 : 1,
-          nome: nome,
-          telefone: telefone,
-          endereco: endereco,
-          pedidos: 0
-        };
-        
-        clientesCadastrados.push(novoCliente);
-        carregarClientes();
-        atualizarListaClientesAutocomplete();
-        fecharModal("clienteModal");
-      });
-      
-      function carregarClientes() {
-        const tbody = document.querySelector("#clientesTable tbody");
-        tbody.innerHTML = "";
-        
-        clientesCadastrados.forEach(cliente => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${cliente.nome}</td>
-            <td>${cliente.telefone || "-"}</td>
-            <td>${cliente.endereco || "-"}</td>
-            <td>${cliente.pedidos}</td>
-            <td class="atendente-only">
-              <button onclick="editarCliente(${cliente.id})" class="editar-btn">Editar</button>
-              <button onclick="excluirCliente(${cliente.id})" class="excluir-btn">Excluir</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-      }
-      
-      function atualizarListaClientesAutocomplete() {
-        const datalist = document.getElementById("clientesList");
-        datalist.innerHTML = "";
-        
-        clientesCadastrados.forEach(cliente => {
-          const option = document.createElement("option");
-          option.value = cliente.nome;
-          if (cliente.telefone) {
-            option.setAttribute("data-telefone", cliente.telefone);
-          }
-          if (cliente.endereco) {
-            option.setAttribute("data-endereco", cliente.endereco);
-          }
-          datalist.appendChild(option);
-        });
-        
-        // Atualizar campos quando selecionar um cliente existente
-        document.getElementById("clienteNome").addEventListener("change", function() {
-          const clienteNome = this.value;
-          const cliente = clientesCadastrados.find(c => c.nome === clienteNome);
-          if (cliente) {
-            document.getElementById("clienteTelefone").value = cliente.telefone || "";
-            document.getElementById("clienteEndereco").value = cliente.endereco || "";
-          }
-        });
-      }
-      
-      function editarCliente(id) {
-        const cliente = clientesCadastrados.find(c => c.id === id);
-        if (!cliente) return;
-        
-        document.getElementById("novoClienteNome").value = cliente.nome;
-        document.getElementById("novoClienteTelefone").value = cliente.telefone || "";
-        document.getElementById("novoClienteEndereco").value = cliente.endereco || "";
-        
-        // Aqui você poderia adicionar lógica para edição, mas para simplificar, vamos apenas abrir o modal
-        adicionarClienteModal();
-      }
-      
-      function excluirCliente(id) {
-        if (confirm("Tem certeza que deseja excluir este cliente?")) {
-          clientesCadastrados = clientesCadastrados.filter(c => c.id !== id);
-          carregarClientes();
-          atualizarListaClientesAutocomplete();
-        }
-      }
-
-      // Funções de Cardápio
-      function mostrarCardapio() {
-        abrirTab('cardapioTab');
-      }
-      
-      function adicionarItemCardapioModal() {
-        document.getElementById("cardapioForm").reset();
-        document.getElementById("cardapioModalTitle").textContent = "Novo Item no Cardápio";
-        document.getElementById("cardapioSubmit").textContent = "Adicionar Item";
-        editandoItemId = null;
-        document.getElementById("cardapioModal").style.display = "block";
-      }
-      
-      function editarItemCardapioModal(id) {
-        const item = cardapio.find(i => i.id === id);
-        if (!item) return;
-        
-        document.getElementById("itemNome").value = item.nome;
-        document.getElementById("itemDescricao").value = item.descricao || "";
-        document.getElementById("itemPreco").value = item.preco;
-        document.getElementById("itemCategoria").value = item.categoria;
-        document.getElementById("itemDisponivel").checked = item.disponivel;
-        
-        document.getElementById("cardapioModalTitle").textContent = "Editar Item do Cardápio";
-        document.getElementById("cardapioSubmit").textContent = "Salvar Alterações";
-        editandoItemId = id;
-        document.getElementById("cardapioModal").style.display = "block";
-      }
-      
-      document.getElementById("cardapioForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-        
-        const nome = document.getElementById("itemNome").value;
-        const descricao = document.getElementById("itemDescricao").value;
-        const preco = parseFloat(document.getElementById("itemPreco").value);
-        const categoria = document.getElementById("itemCategoria").value;
-        const disponivel = document.getElementById("itemDisponivel").checked;
-        
-        if (editandoItemId) {
-          // Editar item existente
-          const item = cardapio.find(i => i.id === editandoItemId);
-          if (item) {
-            item.nome = nome;
-            item.descricao = descricao;
-            item.preco = preco;
-            item.categoria = categoria;
-            item.disponivel = disponivel;
-          }
-        } else {
-          // Adicionar novo item
-          const novoItem = {
-            id: cardapio.length > 0 ? Math.max(...cardapio.map(i => i.id)) + 1 : 1,
-            nome: nome,
-            descricao: descricao,
-            preco: preco,
-            categoria: categoria,
-            disponivel: disponivel
-          };
-          cardapio.push(novoItem);
-        }
-        
-        carregarCardapio();
-        carregarItensCardapioSelect();
-        fecharModal("cardapioModal");
-      });
-      
-      function carregarCardapio() {
-        const cardapioList = document.getElementById("cardapioList");
-        cardapioList.innerHTML = "";
-        
-        cardapio.forEach(item => {
-          const itemDiv = document.createElement("div");
-          itemDiv.className = "cardapio-item";
-          itemDiv.innerHTML = `
-            <h3>${item.nome} <small>(${getCategoriaNome(item.categoria)})</small></h3>
-            <p>${item.descricao || "Sem descrição"}</p>
-            <p>Preço: R$ ${item.preco.toFixed(2)}</p>
-            <p>Status: ${item.disponivel ? "Disponível" : "Indisponível"}</p>
-            <div class="cardapio-actions">
-              <button onclick="editarItemCardapioModal(${item.id})" class="editar-btn">Editar</button>
-              <button onclick="excluirItemCardapio(${item.id})" class="excluir-btn">Excluir</button>
-            </div>
-          `;
-          cardapioList.appendChild(itemDiv);
-        });
-      }
-      
-      function carregarItensCardapioSelect() {
-        const select = document.getElementById("pedidoItem");
-        select.innerHTML = '<option value="">Selecione um item</option>';
-        
-        cardapio.filter(item => item.disponivel).forEach(item => {
-          const option = document.createElement("option");
-          option.value = item.id;
-          option.textContent = `${item.nome} - R$ ${item.preco.toFixed(2)}`;
-          select.appendChild(option);
-        });
-      }
-      
-      function getCategoriaNome(categoria) {
-        switch(categoria) {
-          case "entrada": return "Entrada";
-          case "principal": return "Prato Principal";
-          case "bebida": return "Bebida";
-          case "sobremesa": return "Sobremesa";
-          default: return categoria;
-        }
-      }
-      
-      function excluirItemCardapio(id) {
-        if (confirm("Tem certeza que deseja excluir este item do cardápio?")) {
-          cardapio = cardapio.filter(i => i.id !== id);
-          carregarCardapio();
-          carregarItensCardapioSelect();
-        }
-      }
-
-      // Funções de Funcionários
-      function mostrarFuncionarios() {
-        abrirTab('funcionariosTab');
-      }
-      
-      function adicionarFuncionarioModal() {
-        document.getElementById("funcionarioForm").reset();
-        document.getElementById("funcionarioModalTitle").textContent = "Novo Funcionário";
-        document.getElementById("funcionarioSubmit").textContent = "Adicionar Funcionário";
-        editandoFuncionarioId = null;
-        document.getElementById("funcionarioModal").style.display = "block";
-      }
-      
-      function editarFuncionarioModal(id) {
-        const funcionario = funcionarios.find(f => f.id === id);
-        if (!funcionario) return;
-        
-        document.getElementById("funcionarioNome").value = funcionario.nome;
-        document.getElementById("funcionarioUsuario").value = funcionario.usuario;
-        document.getElementById("funcionarioSenha").value = funcionario.senha;
-        document.getElementById("funcionarioCargo").value = funcionario.cargo;
-        document.getElementById("funcionarioAtivo").checked = funcionario.ativo;
-        
-        document.getElementById("funcionarioModalTitle").textContent = "Editar Funcionário";
-        document.getElementById("funcionarioSubmit").textContent = "Salvar Alterações";
-        editandoFuncionarioId = id;
-        document.getElementById("funcionarioModal").style.display = "block";
-      }
-      
-      document.getElementById("funcionarioForm").addEventListener("submit", function(e) {
-        e.preventDefault();
-        
-        const nome = document.getElementById("funcionarioNome").value;
-        const usuario = document.getElementById("funcionarioUsuario").value;
-        const senha = document.getElementById("funcionarioSenha").value;
-        const cargo = document.getElementById("funcionarioCargo").value;
-        const ativo = document.getElementById("funcionarioAtivo").checked;
-        
-        if (editandoFuncionarioId) {
-          // Editar funcionário existente
-          const funcionario = funcionarios.find(f => f.id === editandoFuncionarioId);
-          if (funcionario) {
-            funcionario.nome = nome;
-            funcionario.usuario = usuario;
-            funcionario.senha = senha;
-            funcionario.cargo = cargo;
-            funcionario.ativo = ativo;
-          }
-        } else {
-          // Adicionar novo funcionário
-          const novoFuncionario = {
-            id: funcionarios.length > 0 ? Math.max(...funcionarios.map(f => f.id)) + 1 : 1,
-            nome: nome,
-            usuario: usuario,
-            senha: senha,
-            cargo: cargo,
-            ativo: ativo
-          };
-          funcionarios.push(novoFuncionario);
-        }
-        
-        carregarFuncionarios();
-        fecharModal("funcionarioModal");
-      });
-      
-      function carregarFuncionarios() {
-        const tbody = document.querySelector("#funcionariosTable tbody");
-        tbody.innerHTML = "";
-        
-        funcionarios.forEach(funcionario => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${funcionario.nome}</td>
-            <td>${funcionario.usuario}</td>
-            <td>${funcionario.cargo}</td>
-            <td>${funcionario.ativo ? "Ativo" : "Inativo"}</td>
-            <td class="admin-only">
-              <button onclick="editarFuncionarioModal(${funcionario.id})" class="editar-btn">Editar</button>
-              <button onclick="excluirFuncionario(${funcionario.id})" class="excluir-btn">${funcionario.ativo ? "Desativar" : "Ativar"}</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-      }
-      
-      function excluirFuncionario(id) {
-        const funcionario = funcionarios.find(f => f.id === id);
-        if (!funcionario) return;
-        
-        if (confirm(`Deseja realmente ${funcionario.ativo ? "desativar" : "ativar"} este funcionário?`)) {
-          funcionario.ativo = !funcionario.ativo;
-          carregarFuncionarios();
-        }
-      }
-
-      // Funções de Relatórios
-      function mostrarRelatorios() {
-        abrirTab('relatoriosTab');
-      }
-      
-      function gerarRelatorio() {
-        const dataSelecionada = document.getElementById("relatorioData").value;
-        const resultadoDiv = document.getElementById("relatorioResult");
-        
-        if (!dataSelecionada) {
-          alert("Por favor, selecione uma data.");
-          return;
-        }
-        
-        const data = new Date(dataSelecionada);
-        const dia = data.getDate();
-        const mes = data.getMonth() + 1;
-        const ano = data.getFullYear();
-        
-        // Filtrar fechamentos pela data selecionada
-        const fechamentosDoDia = fechamentosCaixa.filter(f => {
-          const fData = new Date(f.data);
-          return fData.getDate() === dia && 
-                 fData.getMonth() + 1 === mes && 
-                 fData.getFullYear() === ano;
-        });
-        
-        if (fechamentosDoDia.length === 0) {
-          resultadoDiv.innerHTML = "<p>Nenhum fechamento de caixa encontrado para esta data.</p>";
-          return;
-        }
-        
-        let html = "<h3>Fechamentos de Caixa</h3>";
-        
-        fechamentosDoDia.forEach(fechamento => {
-          html += `
-            <div class="caixa-info">
-              <p><strong>Data:</strong> ${new Date(fechamento.data).toLocaleString("pt-BR")}</p>
-              <p><strong>Responsável:</strong> ${fechamento.responsavel}</p>
-              <p><strong>Saldo Inicial:</strong> R$ ${fechamento.saldoInicial.toFixed(2)}</p>
-              <p><strong>Saldo Final:</strong> R$ ${fechamento.saldoFinal.toFixed(2)}</p>
-              <p><strong>Total de Pedidos:</strong> ${fechamento.totalPedidos}</p>
-              <p><strong>Total em Vendas:</strong> R$ ${fechamento.totalVendas.toFixed(2)}</p>
-            </div>
-          `;
-        });
-        
-        // Filtrar pedidos pela data selecionada
-        const pedidosDoDia = historicoPedidos.filter(p => {
-          const pData = new Date(p.dataPedido);
-          return pData.getDate() === dia && 
-                 pData.getMonth() + 1 === mes && 
-                 pData.getFullYear() === ano;
-        });
-        
-        if (pedidosDoDia.length > 0) {
-          html += "<h3>Pedidos do Dia</h3>";
-          html += "<table><thead><tr><th>Cliente</th><th>Itens</th><th>Valor</th><th>Status</th><th>Atendente</th></tr></thead><tbody>";
-          
-          pedidosDoDia.forEach(pedido => {
-            const itens = pedido.itens.map(i => `${i.quantidade}x ${i.nome}`).join(", ");
-            html += `
-              <tr>
-                <td>${pedido.cliente}</td>
-                <td>${itens}</td>
-                <td>R$ ${pedido.valor.toFixed(2)}</td>
-                <td>${pedido.status}</td>
-                <td>${pedido.atendente}</td>
-              </tr>
-            `;
-          });
-          
-          html += "</tbody></table>";
-        }
-        
-        resultadoDiv.innerHTML = html;
-      }
-
-      // Funções de Navegação
-      function abrirTab(tabId) {
-        // Esconder todas as abas
-        document.querySelectorAll('.tab-content').forEach(tab => {
-          tab.classList.remove('active');
-        });
-        
-        // Desativar todos os botões
-        document.querySelectorAll('.tab-button').forEach(button => {
-          button.classList.remove('active');
-        });
-        
-        // Ativar a aba selecionada
-        document.getElementById(tabId).classList.add('active');
-        
-        // Ativar o botão correspondente
-        const buttons = document.querySelectorAll('.tab-button');
-        for (let i = 0; i < buttons.length; i++) {
-          if (buttons[i].getAttribute('onclick').includes(tabId)) {
-            buttons[i].classList.add('active');
-            break;
-          }
-        }
-      }
-      
-      function mostrarHistorico() {
-        abrirTab('pedidosTab');
-        // Aqui você poderia implementar uma visualização do histórico
-        alert("Histórico de pedidos será exibido aqui.");
-      }
-
-      // Fecha modais ao clicar fora deles
-      window.onclick = function(event) {
-        if (event.target.className === "modal") {
-          event.target.style.display = "none";
-        }
-      };
-    </script>
+    <script src="script.js"></script>
   </body>
 </html>
 ?>
