@@ -1,11 +1,11 @@
-CREATE DATABASE RestauranteDB;
-USE RestauranteDB;
-
-CREATE TABLE Clientes (
-    ID_Cliente INT PRIMARY KEY AUTO_INCREMENT,
+create database ProjetoPedidoPronto;
+use ProjetoPedidoPronto;
+CREATE TABLE Usuarios (
+    ID_Usuario INT PRIMARY KEY AUTO_INCREMENT,
     Nome VARCHAR(100) NOT NULL,
     Telefone VARCHAR(20),
-    Email VARCHAR(100)
+    Email VARCHAR(100),
+    Senha VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE Funcionarios (
@@ -23,16 +23,15 @@ CREATE TABLE Produtos (
     Preco DECIMAL(10,2) NOT NULL,
     Ativo BOOLEAN DEFAULT TRUE
 );
-
 CREATE TABLE Pedidos (
     ID_Pedido INT PRIMARY KEY AUTO_INCREMENT,
     ID_Funcionario INT,
-    ID_Cliente INT,
+    ID_Usuario INT,
     Valor DECIMAL(10,2),
     Data_Pedido DATETIME DEFAULT CURRENT_TIMESTAMP,
     Status ENUM('Aberto', 'Em Preparo', 'Finalizado', 'Cancelado') DEFAULT 'Aberto',
     FOREIGN KEY (ID_Funcionario) REFERENCES Funcionarios(ID_Funcionario),
-    FOREIGN KEY (ID_Cliente) REFERENCES Clientes(ID_Cliente)
+    FOREIGN KEY (ID_Usuario) REFERENCES Usuarios(ID_Usuario)
 );
 
 CREATE TABLE Pedido_Itens (
@@ -45,18 +44,11 @@ CREATE TABLE Pedido_Itens (
     FOREIGN KEY (ID_Produto) REFERENCES Produtos(ID_Produto)
 );
 
-INSERT INTO Produtos (Nome, Categoria, Preco) VALUES
-('Pizza Calabresa', 'Pizza', 45.90),
-('Pizza Frango c/ Catupiry', 'Pizza', 49.90),
-('Coca-Cola 2L', 'Bebida', 10.90),
-('Guaraná 2L', 'Bebida', 9.90),
-('Água 500ml', 'Bebida', 3.50);
-
 DELIMITER //
 
 CREATE PROCEDURE RegistrarPedidoSimples(
     IN p_ID_Funcionario INT,
-    IN p_ID_Cliente INT,
+    IN p_ID_Usuario INT,
     IN p_ID_Produto INT,
     IN p_Quantidade INT
 )
@@ -68,8 +60,8 @@ BEGIN
     SELECT Preco INTO v_Preco FROM Produtos WHERE ID_Produto = p_ID_Produto;
     SET v_Total = v_Preco * p_Quantidade;
 
-    INSERT INTO Pedidos (ID_Funcionario, ID_Cliente, Valor)
-    VALUES (p_ID_Funcionario, p_ID_Cliente, v_Total);
+    INSERT INTO Pedidos (ID_Funcionario, ID_Usuario, Valor)
+    VALUES (p_ID_Funcionario, p_ID_Usuario, v_Total);
 
     SET v_ID_Pedido = LAST_INSERT_ID();
 
