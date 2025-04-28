@@ -1,15 +1,16 @@
-create database ProjetoPedidoPronto;
-use ProjetoPedidoPronto;
+CREATE DATABASE ProjetoPedidoPronto;
+USE ProjetoPedidoPronto;
+
 CREATE TABLE Usuarios (
-    ID_Usuario INT PRIMARY KEY AUTO_INCREMENT,
-    Nome VARCHAR(100) NOT NULL,
-    Telefone VARCHAR(20),
-    Email VARCHAR(100),
-    Senha VARCHAR(255) NOT NULL
+    ID_Usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    tipo ENUM('gerente', 'atendente', 'cliente') NOT NULL
 );
 
 CREATE TABLE Funcionarios (
-    ID_Funcionario INT PRIMARY KEY AUTO_INCREMENT,
+    ID_Funcionario INT AUTO_INCREMENT PRIMARY KEY,
     Nome VARCHAR(100) NOT NULL,
     Cargo VARCHAR(50) NOT NULL,
     Telefone VARCHAR(20),
@@ -17,14 +18,15 @@ CREATE TABLE Funcionarios (
 );
 
 CREATE TABLE Produtos (
-    ID_Produto INT PRIMARY KEY AUTO_INCREMENT,
+    ID_Produto INT AUTO_INCREMENT PRIMARY KEY,
     Nome VARCHAR(100) NOT NULL,
     Categoria VARCHAR(50) NOT NULL,
     Preco DECIMAL(10,2) NOT NULL,
     Ativo BOOLEAN DEFAULT TRUE
 );
+
 CREATE TABLE Pedidos (
-    ID_Pedido INT PRIMARY KEY AUTO_INCREMENT,
+    ID_Pedido INT AUTO_INCREMENT PRIMARY KEY,
     ID_Funcionario INT,
     ID_Usuario INT,
     Valor DECIMAL(10,2),
@@ -44,6 +46,29 @@ CREATE TABLE Pedido_Itens (
     FOREIGN KEY (ID_Produto) REFERENCES Produtos(ID_Produto)
 );
 
+CREATE TABLE cardapio (
+    cardapio_id INT AUTO_INCREMENT PRIMARY KEY,
+    item VARCHAR(100) NOT NULL,
+    descricao TEXT,
+    preco DECIMAL(10,2) NOT NULL,
+    disponivel BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE cardapio_historico (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cardapio_id INT NOT NULL,
+    acao ENUM('criado', 'editado', 'cancelado', 'vendido') NOT NULL,
+    dados_anteriores TEXT,
+    dados_novos TEXT,
+    usuario_id INT NOT NULL,
+    data_acao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cardapio_id) REFERENCES cardapio(cardapio_id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(ID_Usuario)
+);
+CREATE TABLE IF NOT EXISTS Mesas (
+  id_mesa INT AUTO_INCREMENT PRIMARY KEY,
+  descricao VARCHAR(255) NOT NULL
+);
 DELIMITER //
 
 CREATE PROCEDURE RegistrarPedidoSimples(
