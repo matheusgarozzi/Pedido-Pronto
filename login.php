@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Usuários fictícios
+
 $usuarios = [
     'admin' => ['senha' => 'admin123', 'cargo' => 'admin'],
     'gerente' => ['senha' => 'gerente123', 'cargo' => 'gerente'],
