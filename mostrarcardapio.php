@@ -1,23 +1,23 @@
 <?php
-// Conexão com o banco de dados
+
 $servername = "localhost"; // ou seu IP de servidor
 $username = "root";        // usuário do MySQL
 $password = "";            // senha do MySQL
 $database = "PedidoProntoDB";
 
-// Criar conexão
+
 $conn = new mysqli($servername, $username, $password, $database);
 
-// Checar conexão
+
 if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
-// Buscar os produtos do banco de dados
+
 $sql = "SELECT id, nome, descricao, preco, ativo FROM Produtos WHERE ativo = 1";
 $result = $conn->query($sql);
 
-// Fechar a conexão
+
 $conn->close();
 ?>
 
@@ -107,7 +107,7 @@ $conn->close();
 
     <div class="cardapio">
         <?php
-        // Verifica se existem produtos ativos para exibir
+        
         if ($result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
                 echo "
