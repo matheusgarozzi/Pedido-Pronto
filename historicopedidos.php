@@ -1,19 +1,17 @@
 <?php
-// Conexão com o banco de dados
+
 $servername = "localhost"; 
 $username = "root";        
 $password = "";            
 $database = "PedidoProntoDB";
 
-// Criar conexão
+
 $conn = new mysqli($servername, $username, $password, $database);
 
-// Checar conexão
 if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
-// Buscar todos os pedidos
 $sql = "SELECT Pedidos.id, Clientes.nome AS cliente_nome, Pedidos.data_pedido, Pedidos.status, Pedidos.observacoes
         FROM Pedidos
         JOIN Clientes ON Pedidos.cliente_id = Clientes.id";
