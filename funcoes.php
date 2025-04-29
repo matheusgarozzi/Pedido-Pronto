@@ -39,7 +39,7 @@ function buscarStatusCaixa() {
     } else {
         // Retorna valores padrão se não houver registro
         return [
-            'status' => 'fechado',
+            'status' => 'aberto',
             'saldo_inicial' => 0,
             'entradas' => 0,
             'saidas' => 0,
@@ -48,48 +48,76 @@ function buscarStatusCaixa() {
     }
 }
 
-function atualizarCaixa($acao, $valor = 0) {
+function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
     $conn = conectar();
     $valor = floatval($valor);
     $caixaAtual = buscarStatusCaixa();
-    
+
     switch ($acao) {
         case 'abrir':
-            $sql = "INSERT INTO caixa (status, saldo_inicial, saldo_atual, data_abertura) 
-                    VALUES ('aberto', $valor, $valor, NOW())";
+            // Verificar se o caixa já está aberto
+            if ($caixaAtual['status'] == 'aberto') {
+                return false; // Caixa já está aberto
+            }
+
+            // Abrir o caixa com o saldo inicial
+            $sql = "INSERT INTO Caixa (status, saldo_inicial, saldo_atual, data_abertura, responsavel) 
+                    VALUES ('aberto', $valor, $valor, NOW(), ?)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('s', $responsavel); // Responsável como parâmetro
             break;
             
         case 'fechar':
-            $sql = "UPDATE caixa SET 
+            // Verificar se o caixa está aberto antes de fechar
+            if ($caixaAtual['status'] != 'aberto') {
+                return false; // Caixa não está aberto
+            }
+
+            // Fechar o caixa
+            $sql = "UPDATE Caixa SET 
                     status = 'fechado', 
                     data_fechamento = NOW() 
                     WHERE status = 'aberto'";
+            $stmt = $conn->prepare($sql);
             break;
             
         case 'entrada':
+            // Verificar se o caixa está aberto
+            if ($caixaAtual['status'] != 'aberto') {
+                return false; // Caixa não está aberto
+            }
+
+            // Atualizar o saldo atual e registrar a entrada
             $novoSaldo = $caixaAtual['saldo_atual'] + $valor;
-            $sql = "UPDATE caixa SET 
-                    entradas = entradas + $valor,
+            $sql = "UPDATE Caixa SET 
                     saldo_atual = $novoSaldo
                     WHERE status = 'aberto'";
+            $stmt = $conn->prepare($sql);
             break;
             
         case 'saida':
+            // Verificar se o caixa está aberto
+            if ($caixaAtual['status'] != 'aberto') {
+                return false; // Caixa não está aberto
+            }
+
+            // Atualizar o saldo atual e registrar a saída
             $novoSaldo = $caixaAtual['saldo_atual'] - $valor;
-            $sql = "UPDATE caixa SET 
-                    saidas = saidas + $valor,
+            $sql = "UPDATE Caixa SET 
                     saldo_atual = $novoSaldo
                     WHERE status = 'aberto'";
+            $stmt = $conn->prepare($sql);
             break;
             
         default:
             $conn->close();
             return false;
     }
-    
-    $result = $conn->query($sql);
+
+    $stmt->execute();
+    $stmt->close();
     $conn->close();
-    return $result;
+    return true;
 }
 
 function cadastrarCliente($nome, $telefone, $endereco) {
@@ -131,8 +159,7 @@ function cadastrarPedido($cliente_id, $itens = []) {
                                   VALUES (?, ?, ?, ?)");
             
             // Obtém o preço atual do produto
-            $preco = $conn->query("SELECT preco FROM Produtos WHERE id = {$item['produto_id']}")
-                     ->fetch_assoc()['preco'];
+            $preco = $conn->query("SELECT preco FROM Produtos WHERE id = {$item['produto_id']}")->fetch_assoc()['preco'];
             
             $stmt->bind_param('iiid', $pedido_id, $item['produto_id'], 
                             $item['quantidade'], $preco);

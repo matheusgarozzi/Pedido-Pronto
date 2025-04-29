@@ -354,10 +354,18 @@ $caixa = buscarStatusCaixa();
     </style>
 </head>
 <body>
+    
     <header>
         <div class="header-content">
             <h1>PedidoPronto</h1>
             <button class="btn" onclick="openModal('pedido')">Novo Pedido</button>
+            <button class="btn" onclick="location.href='mostrarcardapio.php'">Cardapio</button>
+            <button class="btn" onclick="location.href='historicopedidos.php'">Histórico de Pedidos</button>
+             <button class="btn" onclick="location.href='clientes.php'">Clientes</button>
+             <button class="btn" onclick="location.href='adicionarcliente.php'">Adicionar Cliente</button>
+             <button class="btn" onclick="location.href='adicionarcardapio.php'">Adicionar Cardapio</button>
+
+            <button class="btn" style="background-color: red;" onclick="location.href='logout.php'">Logout</button>
             
         </div>
     </header>
@@ -452,7 +460,7 @@ $caixa = buscarStatusCaixa();
                         </div>
                         <div class="card-body">
                             <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                            <p><strong>Produto:</strong> <?= htmlspecialchars($pedido['produto_nome']) ?></p>
+                            <p><strong>Produto:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
                         </div>
                     </div>
                 <?php endif; endforeach; ?>

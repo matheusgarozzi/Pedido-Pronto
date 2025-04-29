@@ -1,51 +1,28 @@
 <?php
-$servername = "127.0.0.1";
-$database = "RestauranteDB"; 
-$username = "root"; 
-$password = ""; 
-
-$conn = mysqli_connect($servername, $username, $password, $database);
-
-if (!$conn) {
-    die("Connection failed: " . mysqli_connect_error());
-}
+include 'conexao.php';
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = filter_var($_POST["email"], FILTER_SANITIZE_EMAIL);
-    $senha = $_POST["senha"];
-    $confirmarsenha = $_POST["confirmarsenha"];
-    $nome = $_POST["nome"]; 
-    $telefone = $_POST["telefone"];
+    $nome = $_POST['nome'] ?? '';
+    $cpf = $_POST['cpf'] ?? '';
+    $telefone = $_POST['telefone'] ?? '';
+    $email = $_POST['email'] ?? '';
+    $cargo = $_POST['cargo'] ?? '';
+    $data_contratacao = $_POST['data_contratacao'] ?? '';
+    $salario_base = $_POST['salario_base'] ?? '';
 
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        echo "Email inválido.";
-    } elseif ($senha !== $confirmarsenha) {
-        echo "As senhas não coincidem.";
-    } else {
-        $stmt = $conn->prepare("SELECT * FROM Usuarios WHERE Email = ?");
-        $stmt->bind_param("s", $email);
-        $stmt->execute();
-        $result = $stmt->get_result();
+    if (!empty($nome) && !empty($cpf) && !empty($cargo) && !empty($data_contratacao) && !empty($salario_base)) {
+        $sql = "INSERT INTO Funcionarios (nome, cpf, telefone, email, cargo, data_contratacao, salario_base) 
+                VALUES ('$nome', '$cpf', '$telefone', '$email', '$cargo', '$data_contratacao', '$salario_base')";
 
-        if ($result->num_rows > 0) {
-            echo "Usuário já existe.";
+        if ($conn->query($sql) === TRUE) {
+            echo "Funcionário cadastrado com sucesso!";
         } else {
-            $hash_senha = password_hash($senha, PASSWORD_BCRYPT);
-
-            $stmt = $conn->prepare("INSERT INTO Usuarios (Nome, Telefone, Email, Senha) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("ssss", $nome, $telefone, $email, $hash_senha);
-
-            if ($stmt->execute()) {
-                echo "Cadastro realizado com sucesso!";
-                header("Location: login.html");
-                exit();
-            } else {
-                echo "Erro ao cadastrar usuário.";
-            }
+            echo "Erro ao cadastrar: " . $conn->error;
         }
-        $stmt->close();
+    } else {
+        echo "Preencha todos os campos obrigatórios.";
     }
 }
-
-$conn->close();
 ?>
