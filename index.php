@@ -1,7 +1,7 @@
 <?php
 require_once 'funcoes.php';
 
-// Processar requisições POST
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
     $response = ['success' => false, 'message' => ''];
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Buscar todos os registros
+
 $pedidos = buscarPedidos();
 $clientes = buscarClientes();
 $produtos = buscarProdutos();
@@ -306,7 +306,7 @@ $caixa = buscarStatusCaixa();
             margin-bottom: 10px;
             border-radius: 5px;
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr auto; /* Melhor layout para os campos */
+            grid-template-columns: 2fr 1fr 1fr auto; 
             gap: 10px;
             align-items: center;
         }
@@ -530,20 +530,20 @@ $caixa = buscarStatusCaixa();
     <div class="notification" id="notification"></div>
 
     <script>
-        // Variável para contar os itens
+        
         let itemCount = 1;
 
-        // Função para abrir o modal
+        
         function openModal(modalId) {
             document.getElementById(modalId + 'Modal').style.display = 'flex';
         }
 
-        // Função para fechar o modal
+        
         function closeModal() {
             document.querySelectorAll('.modal').forEach(modal => modal.style.display = 'none');
         }
 
-        // Função para adicionar novo item
+        
         function adicionarItem() {
             const container = document.getElementById('itensContainer');
             const novoItem = document.createElement('div');
@@ -574,19 +574,19 @@ $caixa = buscarStatusCaixa();
             container.appendChild(novoItem);
             itemCount++;
 
-            // Adiciona os event listeners para o novo item
+           
             novoItem.querySelector('.produto-select').addEventListener('change', calcularSubtotal);
             novoItem.querySelector('.quantidade-input').addEventListener('input', calcularSubtotal);
         }
 
-        // Função para remover item
+        
         function removerItem(btn) {
             const item = btn.closest('.item-pedido');
             item.remove();
             calcularTotal();
         }
 
-        // Função para calcular subtotal de cada item
+        
         function calcularSubtotal(event) {
             const item = event.target.closest('.item-pedido');
             const select = item.querySelector('.produto-select');
@@ -601,7 +601,7 @@ $caixa = buscarStatusCaixa();
             calcularTotal();
         }
 
-        // Função para calcular o total do pedido
+        
         function calcularTotal() {
             let total = 0;
             document.querySelectorAll('.item-pedido').forEach(item => {
@@ -613,18 +613,18 @@ $caixa = buscarStatusCaixa();
             document.getElementById('totalPedido').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
         }
 
-        // Função para enviar o pedido
+       
         function enviarPedido() {
             const clienteId = document.getElementById('cliente_id').value;
             const itens = [];
 
-            // Validação do cliente
+            
             if (!clienteId) {
                 showNotification('Selecione um cliente', 'error');
                 return;
             }
 
-            // Coleta os itens
+            
             document.querySelectorAll('.item-pedido').forEach((item, index) => {
                 const produtoId = item.querySelector('.produto-select').value;
                 const quantidade = item.querySelector('.quantidade-input').value;
@@ -637,13 +637,13 @@ $caixa = buscarStatusCaixa();
                 }
             });
 
-            // Validação dos itens
+            
             if (itens.length === 0) {
                 showNotification('Adicione pelo menos um item ao pedido', 'error');
                 return;
             }
 
-            // Envia via AJAX
+            
             fetch('index.php', {
                 method: 'POST',
                 headers: {
@@ -664,7 +664,7 @@ $caixa = buscarStatusCaixa();
             });
         }
 
-        // Função para mostrar notificações
+        
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
             notification.textContent = message;
@@ -675,28 +675,28 @@ $caixa = buscarStatusCaixa();
             }, 3000);
         }
 
-        // Adiciona eventos aos elementos iniciais
+        
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelector('.produto-select').addEventListener('change', calcularSubtotal);
             document.querySelector('.quantidade-input').addEventListener('input', calcularSubtotal);
         });
          let draggedPedidoId = null;
 
-    // Função chamada quando o arrasto começa
+    
     function drag(event) {
         draggedPedidoId = event.target.id; // Armazena o ID do pedido arrastado
     }
 
-    // Permite que o elemento seja solto
+    
     function allowDrop(event) {
         event.preventDefault(); // Impede o comportamento padrão
     }
 
-    // Função chamada quando o pedido é solto em uma nova coluna
+    
     function drop(event, status) {
         event.preventDefault(); // Impede o comportamento padrão
 
-        // Atualiza o status do pedido no servidor
+        
         fetch('index.php', {
             method: 'POST',
             headers: {
@@ -720,7 +720,7 @@ $caixa = buscarStatusCaixa();
         });
     }
 
-    // Função para mostrar notificações
+    
     function showNotification(message, type = 'success') {
         const notification = document.getElementById('notification');
         notification.textContent = message;
@@ -731,7 +731,6 @@ $caixa = buscarStatusCaixa();
         }, 3000);
     }
 
-    // Adiciona eventos aos elementos iniciais
     document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.card').forEach(card => {
             card.addEventListener('dragstart', drag);
