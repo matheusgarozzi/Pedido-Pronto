@@ -27,15 +27,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <link rel="stylesheet" href="stylelogin.css">
     <title>Login</title>
 </head>
 <body>
-    <h2>Login</h2>
-    <?php if (!empty($erro)) echo "<p style='color:red;'>$erro</p>"; ?>
-    <form method="post">
-        <input type="text" name="usuario" placeholder="Usuário" required><br>
-        <input type="password" name="senha" placeholder="Senha" required><br>
-        <button type="submit">Entrar</button>
-    </form>
+    <div class="login-container">
+        <h2 class="titulo">Pedido Pronto</h2>
+        <?php if (!empty($erro)) echo "<p style='color:red;'>$erro</p>"; ?>
+        <form method="post">
+            <input type="text" name="usuario" placeholder="Usuário" required><br>
+            <input type="password" name="senha" placeholder="Senha" required><br>
+            <button type="submit">Entrar</button>
+        </form>
+    </div>
 </body>
 </html>
+

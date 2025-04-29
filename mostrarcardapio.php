@@ -1,22 +1,18 @@
 <?php
-
-$servername = "localhost"; 
-$username = "root";        
-$password = "";            
+// Conexão com o banco de dados
+$servername = "localhost";
+$username = "root";
+$password = "";
 $database = "PedidoProntoDB";
 
-
 $conn = new mysqli($servername, $username, $password, $database);
-
 
 if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
-
-$sql = "SELECT id, nome, descricao, preco, ativo FROM Produtos WHERE ativo = 1";
+$sql = "SELECT id, nome, descricao, preco, imagem FROM Produtos WHERE ativo = 1";
 $result = $conn->query($sql);
-
 
 $conn->close();
 ?>
@@ -28,101 +24,86 @@ $conn->close();
     <title>Cardápio</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #e6f0ff;
-            color: #003366;
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f4f4f4;
         }
         h1 {
             text-align: center;
-            padding: 30px 0;
-            background-color: #0056b3;
-            color: #ffffff;
-            margin: 0 0 40px 0;
-            font-size: 36px;
+            margin-bottom: 40px;
         }
         .cardapio {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            padding: 20px;
+            justify-content: space-around;
         }
         .produto-card {
-            background-color: #ffffff;
-            border: 2px solid #99c2ff;
-            border-radius: 12px;
-            width: 260px;
-            box-shadow: 0 4px 8px rgba(0, 86, 179, 0.1);
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            width: 250px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             text-align: center;
-            overflow: hidden;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-        .produto-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 8px 16px rgba(0, 86, 179, 0.3);
+            padding: 15px;
         }
         .produto-card img {
             width: 100%;
-            height: 160px;
+            height: 150px;
             object-fit: cover;
+            border-radius: 5px;
         }
         .produto-card h3 {
-            font-size: 20px;
-            margin: 15px 10px 5px 10px;
-            color: #003366;
+            color: #333;
+            font-size: 18px;
+            margin: 10px 0;
         }
         .produto-card p {
+            color: #666;
             font-size: 14px;
-            margin: 0 10px 15px 10px;
-            color: #336699;
+            margin-bottom: 15px;
         }
         .produto-card .preco {
-            font-size: 18px;
-            color: #0056b3;
+            font-size: 16px;
+            color: green;
             font-weight: bold;
-            margin-bottom: 10px;
         }
         .produto-card button {
-            background-color: #007bff;
-            color: #ffffff;
+            background-color: #28a745;
+            color: white;
             border: none;
-            padding: 12px 0;
-            width: 100%;
-            font-size: 16px;
+            padding: 10px;
+            border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s;
-            border-bottom-left-radius: 10px;
-            border-bottom-right-radius: 10px;
+            width: 100%;
         }
         .produto-card button:hover {
-            background-color: #0056b3;
+            background-color: #218838;
         }
     </style>
 </head>
 <body>
 
-    <h1>Nosso Cardápio</h1>
+<h1>Nosso Cardápio</h1>
 
-    <div class="cardapio">
-        <?php
-        
-        if ($result->num_rows > 0) {
-            while ($row = $result->fetch_assoc()) {
-                echo "
-                <div class='produto-card'>
-                    <img src='https://via.placeholder.com/250x150' alt='Imagem do produto'>
-                    <h3>{$row['nome']}</h3>
-                    <p>{$row['descricao']}</p>
-                    <p class='preco'>R$ " . number_format($row['preco'], 2, ',', '.') . "</p>
-                </div>";
-            }
-        } else {
-            echo "<p style='text-align:center;'>Nenhum produto disponível no momento.</p>";
+<div class="cardapio">
+    <?php
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $imagem = $row['imagem'] ? $row['imagem'] : 'https://via.placeholder.com/250x150';
+            echo "
+            <div class='produto-card'>
+                <img src='$imagem' alt='Imagem do produto'>
+                <h3>{$row['nome']}</h3>
+                <p>{$row['descricao']}</p>
+                <p class='preco'>R$ " . number_format($row['preco'], 2, ',', '.') . "</p>
+            </div>";
         }
-        ?>
-    </div>
+    } else {
+        echo "<p style='text-align:center;'>Nenhum produto disponível no momento.</p>";
+    }
+    ?>
+</div>
 
 </body>
 </html>
