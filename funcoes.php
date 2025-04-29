@@ -2,7 +2,7 @@
 function conectar() {
     $host = 'localhost';
     $usuario = 'root';
-    $senha = ''; // deixe vazio se não colocou senha no XAMPP
+    $senha = ''; 
     $banco = 'PedidoProntoDB';
 
     $conn = new mysqli($host, $usuario, $senha, $banco);
@@ -17,7 +17,7 @@ function conectar() {
 function buscarStatusCaixa() {
     $conn = conectar();
     
-    // Verifique se a tabela Caixa existe
+    
     $tabelaExiste = $conn->query("SHOW TABLES LIKE 'Caixa'")->num_rows > 0;
     
     if (!$tabelaExiste) {
@@ -30,14 +30,14 @@ function buscarStatusCaixa() {
         ];
     }
     
-    // Use a coluna correta (provavelmente 'id' em vez de 'caixa_id')
+    
     $sql = "SELECT * FROM Caixa ORDER BY id DESC LIMIT 1";
     $result = $conn->query($sql);
     
     if ($result && $result->num_rows > 0) {
         return $result->fetch_assoc();
     } else {
-        // Retorna valores padrão se não houver registro
+       
         return [
             'status' => 'aberto',
             'saldo_inicial' => 0,
@@ -55,25 +55,25 @@ function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
 
     switch ($acao) {
         case 'abrir':
-            // Verificar se o caixa já está aberto
+            
             if ($caixaAtual['status'] == 'aberto') {
-                return false; // Caixa já está aberto
+                return false; 
             }
 
-            // Abrir o caixa com o saldo inicial
+           
             $sql = "INSERT INTO Caixa (status, saldo_inicial, saldo_atual, data_abertura, responsavel) 
                     VALUES ('aberto', $valor, $valor, NOW(), ?)";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param('s', $responsavel); // Responsável como parâmetro
+            $stmt->bind_param('s', $responsavel); 
             break;
             
         case 'fechar':
-            // Verificar se o caixa está aberto antes de fechar
+            
             if ($caixaAtual['status'] != 'aberto') {
-                return false; // Caixa não está aberto
+                return false; 
             }
 
-            // Fechar o caixa
+            
             $sql = "UPDATE Caixa SET 
                     status = 'fechado', 
                     data_fechamento = NOW() 
@@ -82,12 +82,12 @@ function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
             break;
             
         case 'entrada':
-            // Verificar se o caixa está aberto
+            
             if ($caixaAtual['status'] != 'aberto') {
-                return false; // Caixa não está aberto
+                return false; 
             }
 
-            // Atualizar o saldo atual e registrar a entrada
+            
             $novoSaldo = $caixaAtual['saldo_atual'] + $valor;
             $sql = "UPDATE Caixa SET 
                     saldo_atual = $novoSaldo
@@ -96,12 +96,12 @@ function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
             break;
             
         case 'saida':
-            // Verificar se o caixa está aberto
+            
             if ($caixaAtual['status'] != 'aberto') {
-                return false; // Caixa não está aberto
+                return false; 
             }
 
-            // Atualizar o saldo atual e registrar a saída
+            
             $novoSaldo = $caixaAtual['saldo_atual'] - $valor;
             $sql = "UPDATE Caixa SET 
                     saldo_atual = $novoSaldo
@@ -145,20 +145,20 @@ function cadastrarPedido($cliente_id, $itens = []) {
     $conn->begin_transaction();
     
     try {
-        // 1. Cria o pedido
+        
         $stmt = $conn->prepare("INSERT INTO Pedidos (cliente_id) VALUES (?)");
         $stmt->bind_param('i', $cliente_id);
         $stmt->execute();
         $pedido_id = $conn->insert_id;
         $stmt->close();
         
-        // 2. Adiciona os itens do pedido
+        
         foreach ($itens as $item) {
             $stmt = $conn->prepare("INSERT INTO ItensPedido 
                                   (pedido_id, produto_id, quantidade, preco_unitario) 
                                   VALUES (?, ?, ?, ?)");
             
-            // Obtém o preço atual do produto
+            
             $preco = $conn->query("SELECT preco FROM Produtos WHERE id = {$item['produto_id']}")->fetch_assoc()['preco'];
             
             $stmt->bind_param('iiid', $pedido_id, $item['produto_id'], 
