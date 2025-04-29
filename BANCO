@@ -1,99 +1,69 @@
-CREATE DATABASE ProjetoPedidoPronto;
-USE ProjetoPedidoPronto;
+CREATE DATABASE IF NOT EXISTS PedidoProntoDB;
+USE PedidoProntoDB;
 
-CREATE TABLE Usuarios (
-    ID_Usuario INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    senha VARCHAR(255) NOT NULL,
-    tipo ENUM('gerente', 'atendente', 'cliente') NOT NULL
-);
 
-CREATE TABLE Funcionarios (
-    ID_Funcionario INT AUTO_INCREMENT PRIMARY KEY,
-    Nome VARCHAR(100) NOT NULL,
-    Cargo VARCHAR(50) NOT NULL,
-    Telefone VARCHAR(20),
-    Salario DECIMAL(10,2)
-);
-
-CREATE TABLE Produtos (
-    ID_Produto INT AUTO_INCREMENT PRIMARY KEY,
-    Nome VARCHAR(100) NOT NULL,
-    Categoria VARCHAR(50) NOT NULL,
-    Preco DECIMAL(10,2) NOT NULL,
-    Ativo BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE Pedidos (
-    ID_Pedido INT AUTO_INCREMENT PRIMARY KEY,
-    ID_Funcionario INT,
-    ID_Usuario INT,
-    Valor DECIMAL(10,2),
-    Data_Pedido DATETIME DEFAULT CURRENT_TIMESTAMP,
-    Status ENUM('Aberto', 'Em Preparo', 'Finalizado', 'Cancelado') DEFAULT 'Aberto',
-    FOREIGN KEY (ID_Funcionario) REFERENCES Funcionarios(ID_Funcionario),
-    FOREIGN KEY (ID_Usuario) REFERENCES Usuarios(ID_Usuario)
-);
-
-CREATE TABLE Pedido_Itens (
-    ID_Pedido INT,
-    ID_Produto INT,
-    Quantidade INT NOT NULL DEFAULT 1,
-    Preco_Unitario DECIMAL(10,2) NOT NULL,
-    PRIMARY KEY (ID_Pedido, ID_Produto),
-    FOREIGN KEY (ID_Pedido) REFERENCES Pedidos(ID_Pedido),
-    FOREIGN KEY (ID_Produto) REFERENCES Produtos(ID_Produto)
-);
-
-CREATE TABLE cardapio (
-    cardapio_id INT AUTO_INCREMENT PRIMARY KEY,
-    item VARCHAR(100) NOT NULL,
-    descricao TEXT,
-    preco DECIMAL(10,2) NOT NULL,
-    disponivel BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE cardapio_historico (
+CREATE TABLE IF NOT EXISTS Clientes (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    cardapio_id INT NOT NULL,
-    acao ENUM('criado', 'editado', 'cancelado', 'vendido') NOT NULL,
-    dados_anteriores TEXT,
-    dados_novos TEXT,
-    usuario_id INT NOT NULL,
-    data_acao DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (cardapio_id) REFERENCES cardapio(cardapio_id),
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(ID_Usuario)
+    nome VARCHAR(100) NOT NULL,
+    telefone VARCHAR(20),
+    endereco VARCHAR(200),
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-CREATE TABLE IF NOT EXISTS Mesas (
-  id_mesa INT AUTO_INCREMENT PRIMARY KEY,
-  descricao VARCHAR(255) NOT NULL
+select * from clientes;
+
+	CREATE TABLE IF NOT EXISTS Produtos (
+		id INT AUTO_INCREMENT PRIMARY KEY,
+		nome VARCHAR(100) NOT NULL,
+		descricao TEXT,
+		preco DECIMAL(10,2) NOT NULL,
+		ativo BOOLEAN DEFAULT TRUE
+	);
+
+
+
+
+CREATE TABLE IF NOT EXISTS Pedidos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    cliente_id INT NOT NULL,
+    data_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('pendente', 'preparo', 'pronto', 'entregue', 'cancelado') DEFAULT 'pendente',
+    observacoes TEXT,
+    
+    CONSTRAINT fk_pedido_cliente
+    FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE
 );
-DELIMITER //
 
-CREATE PROCEDURE RegistrarPedidoSimples(
-    IN p_ID_Funcionario INT,
-    IN p_ID_Usuario INT,
-    IN p_ID_Produto INT,
-    IN p_Quantidade INT
-)
-BEGIN
-    DECLARE v_ID_Pedido INT;
-    DECLARE v_Preco DECIMAL(10,2);
-    DECLARE v_Total DECIMAL(10,2);
 
-    SELECT Preco INTO v_Preco FROM Produtos WHERE ID_Produto = p_ID_Produto;
-    SET v_Total = v_Preco * p_Quantidade;
+CREATE TABLE IF NOT EXISTS ItensPedido (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    pedido_id INT NOT NULL,
+    produto_id INT NOT NULL,
+    quantidade INT NOT NULL DEFAULT 1,
+    preco_unitario DECIMAL(10,2) NOT NULL,
+    
+    CONSTRAINT fk_item_pedido
+    FOREIGN KEY (pedido_id) REFERENCES Pedidos(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+    
+    CONSTRAINT fk_item_produto
+    FOREIGN KEY (produto_id) REFERENCES Produtos(id)
+    ON DELETE RESTRICT
+    ON UPDATE CASCADE
+);
 
-    INSERT INTO Pedidos (ID_Funcionario, ID_Usuario, Valor)
-    VALUES (p_ID_Funcionario, p_ID_Usuario, v_Total);
+-- Tabela Caixa
+CREATE TABLE IF NOT EXISTS Caixa (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    status ENUM('aberto', 'fechado') DEFAULT 'aberto',
+    saldo_inicial DECIMAL(10,2) DEFAULT 0,
+    saldo_atual DECIMAL(10,2) DEFAULT 0,
+    data_abertura DATETIME,
+    data_fechamento DATETIME,
+    responsavel VARCHAR(100)
+);
 
-    SET v_ID_Pedido = LAST_INSERT_ID();
 
-    INSERT INTO Pedido_Itens (ID_Pedido, ID_Produto, Quantidade, Preco_Unitario)
-    VALUES (v_ID_Pedido, p_ID_Produto, p_Quantidade, v_Preco);
 
-    SELECT v_ID_Pedido AS PedidoID, v_Total AS Total;
-END //
-
-DELIMITER ;
