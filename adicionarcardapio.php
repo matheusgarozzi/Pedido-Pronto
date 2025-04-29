@@ -1,19 +1,19 @@
 <?php
-// Conexão com o banco de dados
+
 $servername = "localhost"; // ou seu IP de servidor
 $username = "root";        // usuário do MySQL
 $password = "";            // senha do MySQL
 $database = "PedidoProntoDB";
 
-// Criar conexão
+
 $conn = new mysqli($servername, $username, $password, $database);
 
-// Checar conexão
+
 if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
-// Se o formulário foi enviado
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nome = $_POST['nome'];
     $descricao = $_POST['descricao'];
