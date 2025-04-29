@@ -1,8 +1,8 @@
 <?php
 
-$servername = "localhost"; // ou seu IP de servidor
-$username = "root";        // usuário do MySQL
-$password = "";            // senha do MySQL
+$servername = "localhost"; 
+$username = "root";        
+$password = "";            
 $database = "PedidoProntoDB";
 
 
