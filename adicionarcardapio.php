@@ -1,8 +1,8 @@
 <?php
 
-$servername = "localhost"; // ou seu IP de servidor
-$username = "root";        // usuário do MySQL
-$password = "";            // senha do MySQL
+$servername = "localhost"; 
+$username = "root";        
+$password = "";            
 $database = "PedidoProntoDB";
 
 
@@ -18,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nome = $_POST['nome'];
     $descricao = $_POST['descricao'];
     $preco = $_POST['preco'];
-    $ativo = isset($_POST['ativo']) ? 1 : 0; // Checkbox para ativo ou não
+    $ativo = isset($_POST['ativo']) ? 1 : 0; 
 
     $sql = "INSERT INTO Produtos (nome, descricao, preco, ativo) 
             VALUES ('$nome', '$descricao', '$preco', '$ativo')";
