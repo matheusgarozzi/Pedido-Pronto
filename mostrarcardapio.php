@@ -1,5 +1,4 @@
 <?php
-// Conexão com o banco de dados
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -13,97 +12,129 @@ if ($conn->connect_error) {
 
 $sql = "SELECT id, nome, descricao, preco, imagem FROM Produtos WHERE ativo = 1";
 $result = $conn->query($sql);
-
-$conn->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Cardápio</title>
+    <title>Lista de Pedidos</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 40px;
-            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
         }
-        h1 {
-            text-align: center;
-            margin-bottom: 40px;
+        header {
+            background-color: #007bff;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .header-content {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .btn:hover {
+            background-color: #138496;
+            transform: scale(1.05);
+        }
+        .btn.logout {
+            background-color: #dc3545;
+        }
+        .btn.logout:hover {
+            background-color: #c82333;
+        }
+        main {
+            padding: 20px;
         }
         .cardapio {
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-around;
+            gap: 20px;
+            justify-content: center;
         }
         .produto-card {
             background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            width: 250px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 8px;
             padding: 15px;
+            width: 250px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
         }
         .produto-card img {
             width: 100%;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 5px;
+            height: auto;
+            border-radius: 4px;
         }
         .produto-card h3 {
-            color: #333;
-            font-size: 18px;
-            margin: 10px 0;
+            margin: 10px 0 5px;
         }
         .produto-card p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 15px;
+            margin: 5px 0;
         }
-        .produto-card .preco {
-            font-size: 16px;
-            color: green;
+        .preco {
             font-weight: bold;
-        }
-        .produto-card button {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-        }
-        .produto-card button:hover {
-            background-color: #218838;
+            color: #28a745;
         }
     </style>
 </head>
 <body>
+    <header>
+        <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
+        <div class="header-content">
+            <button class="btn" onclick="location.href='mostrarcardapio.php'">Cardápio</button>
+            <button class="btn" onclick="location.href='historicopedidos.php'">Histórico de Pedidos</button>
+            <button class="btn" onclick="location.href='clientes.php'">Clientes</button>
+            <button class="btn" onclick="location.href='adicionarcliente.php'">Adicionar Cliente</button>
+            <button class="btn" onclick="location.href='adicionarcardapio.php'">Adicionar Cardápio</button>
+            <button class="btn logout" onclick="location.href='logout.php'">Logout</button>
+        </div>
+    </header>
 
-<h1>Nosso Cardápio</h1>
+    <main>
+        <h2 style="text-align: center;">Nosso Cardápio</h2>
 
-<div class="cardapio">
-    <?php
-    if ($result->num_rows > 0) {
-        while ($row = $result->fetch_assoc()) {
-            $imagem = $row['imagem'] ? $row['imagem'] : 'https://via.placeholder.com/250x150';
-            echo "
-            <div class='produto-card'>
-                <img src='$imagem' alt='Imagem do produto'>
-                <h3>{$row['nome']}</h3>
-                <p>{$row['descricao']}</p>
-                <p class='preco'>R$ " . number_format($row['preco'], 2, ',', '.') . "</p>
-            </div>";
-        }
-    } else {
-        echo "<p style='text-align:center;'>Nenhum produto disponível no momento.</p>";
-    }
-    ?>
-</div>
+        <div class="cardapio">
+            <?php
+            if ($result && $result->num_rows > 0) {
+                while ($row = $result->fetch_assoc()) {
+                    $imagem = htmlspecialchars($row['imagem']) ?: 'https://via.placeholder.com/250x150';
+                    $nome = htmlspecialchars($row['nome']);
+                    $descricao = htmlspecialchars($row['descricao']);
+                    $preco = number_format($row['preco'], 2, ',', '.');
 
+                    echo "
+                    <div class='produto-card'>
+                        <img src='$imagem' alt='Imagem do produto'>
+                        <h3>$nome</h3>
+                        <p>$descricao</p>
+                        <p class='preco'>R$ $preco</p>
+                    </div>";
+                }
+            } else {
+                echo "<p style='text-align:center;'>Nenhum produto disponível no momento.</p>";
+            }
+
+            $conn->close();
+            ?>
+        </div>
+    </main>
 </body>
 </html>
