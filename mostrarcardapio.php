@@ -1,16 +1,20 @@
 <?php
-$servername = "localhost";
-$username = "root";
-$password = "";
+
+$servername = "localhost"; 
+$username = "root";        
+$password = "";            
 $database = "PedidoProntoDB";
 
+
 $conn = new mysqli($servername, $username, $password, $database);
+
 
 if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
-$sql = "SELECT id, nome, descricao, preco, imagem FROM Produtos WHERE ativo = 1";
+
+$sql = "SELECT id, nome, telefone, endereco, data_cadastro FROM Clientes";
 $result = $conn->query($sql);
 ?>
 
@@ -63,35 +67,27 @@ $result = $conn->query($sql);
         main {
             padding: 20px;
         }
-        .cardapio {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-        }
-        .produto-card {
-            background-color: white;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            padding: 15px;
-            width: 250px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .produto-card img {
+        table {
             width: 100%;
-            height: auto;
-            border-radius: 4px;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
         }
-        .produto-card h3 {
-            margin: 10px 0 5px;
+        table, th, td {
+            border: 1px solid #ccc;
         }
-        .produto-card p {
-            margin: 5px 0;
+        th, td {
+            padding: 12px;
+            text-align: left;
         }
-        .preco {
-            font-weight: bold;
-            color: #28a745;
+        th {
+            background-color: #f4f4f4;
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+            margin-top: 30px;
+            background-color: #f1f1f1;
         }
     </style>
 </head>
@@ -107,34 +103,30 @@ $result = $conn->query($sql);
             <button class="btn logout" onclick="location.href='logout.php'">Logout</button>
         </div>
     </header>
+    <h1>Clientes Registrados</h1>
 
-    <main>
-        <h2 style="text-align: center;">Nosso Cardápio</h2>
+    <?php
+    if ($result->num_rows > 0) {
+        echo "<table>";
+        echo "<tr><th>ID</th><th>Nome</th><th>Telefone</th><th>Endereço</th><th>Data de Cadastro</th></tr>";
 
-        <div class="cardapio">
-            <?php
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $imagem = htmlspecialchars($row['imagem']) ?: 'https://via.placeholder.com/250x150';
-                    $nome = htmlspecialchars($row['nome']);
-                    $descricao = htmlspecialchars($row['descricao']);
-                    $preco = number_format($row['preco'], 2, ',', '.');
+        while($row = $result->fetch_assoc()) {
+            echo "<tr>";
+            echo "<td>" . htmlspecialchars($row["id"]) . "</td>";
+            echo "<td>" . htmlspecialchars($row["nome"]) . "</td>";
+            echo "<td>" . htmlspecialchars($row["telefone"]) . "</td>";
+            echo "<td>" . htmlspecialchars($row["endereco"]) . "</td>";
+            echo "<td>" . htmlspecialchars($row["data_cadastro"]) . "</td>";
+            echo "</tr>";
+        }
 
-                    echo "
-                    <div class='produto-card'>
-                        <img src='$imagem' alt='Imagem do produto'>
-                        <h3>$nome</h3>
-                        <p>$descricao</p>
-                        <p class='preco'>R$ $preco</p>
-                    </div>";
-                }
-            } else {
-                echo "<p style='text-align:center;'>Nenhum produto disponível no momento.</p>";
-            }
+        echo "</table>";
+    } else {
+        echo "<p>Nenhum cliente encontrado.</p>";
+    }
 
-            $conn->close();
-            ?>
-        </div>
-    </main>
+    $conn->close();
+    ?>
+
 </body>
 </html>
