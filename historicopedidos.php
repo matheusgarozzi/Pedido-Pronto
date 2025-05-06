@@ -92,9 +92,8 @@ $result = $conn->query($sql);
 </head>
 <body>
     <header>
-        <h1>PedidoPronto</h1>
+        <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
         <div class="header-content">
-            <button class="btn" onclick="openModal('pedido')">Novo Pedido</button>
             <button class="btn" onclick="location.href='mostrarcardapio.php'">Cardápio</button>
             <button class="btn" onclick="location.href='historicopedidos.php'">Histórico de Pedidos</button>
             <button class="btn" onclick="location.href='clientes.php'">Clientes</button>
@@ -132,3 +131,4 @@ $result = $conn->query($sql);
     </main>
 </body>
 </html>
+
