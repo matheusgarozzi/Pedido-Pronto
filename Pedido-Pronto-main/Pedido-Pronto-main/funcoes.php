@@ -249,5 +249,17 @@ function atualizarStatus($pedido_id, $status) {
     $conn->close();
     return $result;
 }
+function buscarProdutosAtivos() {
+    global $conn; // Assume que $conn já está definido como sua conexão MySQL
+    
+    $sql = "SELECT id, nome, descricao, preco, imagem FROM produtos WHERE ativo = 1";
+    $result = $conn->query($sql);
+    
+    if (!$result) {
+        return []; // Retorna array vazio se houver erro
+    }
+    
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
 
 ?>

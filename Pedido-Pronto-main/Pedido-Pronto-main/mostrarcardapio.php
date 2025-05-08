@@ -1,140 +1,390 @@
 <?php
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "PedidoProntoDB";
+require_once 'conexao.php'; // Certifique-se que está incluindo o arquivo com a conexão
+require_once 'funcoes.php'; 
 
-$conn = new mysqli($servername, $username, $password, $database);
+@session_start();
 
-if ($conn->connect_error) {
-    die("Conexão falhou: " . $conn->connect_error);
-}
-
-$sql = "SELECT id, nome, descricao, preco, imagem FROM Produtos WHERE ativo = 1";
-$result = $conn->query($sql);
+$produtos = buscarProdutosAtivos();
 ?>
 
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Lista de Pedidos</title>
+    <title>Cardápio - PedidoPronto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --warning: #f8961e;
+            --danger: #f94144;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+
+        * {
             margin: 0;
             padding: 0;
-            background-color: #f8f9fa;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
         }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
         header {
-            background-color: #007bff;
+            background-color: var(--primary);
             color: white;
-            padding: 15px 20px;
+            padding: 15px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
         }
-        .header-content {
+
+        .header-buttons {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
         }
+
+        h1, h2 {
+            font-weight: 500;
+        }
+
         .btn {
-            background-color: #17a2b8;
+            background-color: var(--primary);
             color: white;
             border: none;
             padding: 8px 15px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s, transform 0.2s;
+            transition: background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
+
         .btn:hover {
-            background-color: #138496;
-            transform: scale(1.05);
+            background-color: var(--secondary);
         }
+
         .btn.logout {
-            background-color: #dc3545;
+            background-color: var(--danger);
         }
+
         .btn.logout:hover {
             background-color: #c82333;
         }
-        main {
-            padding: 20px;
+
+        .btn.add {
+            background-color: var(--success);
+            margin-bottom: 20px;
         }
-        .cardapio {
-            display: flex;
-            flex-wrap: wrap;
+
+        .btn.add:hover {
+            background-color: #3aa8c4;
+        }
+
+        .cardapio-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
-            justify-content: center;
+            margin-top: 20px;
         }
+
         .produto-card {
             background-color: white;
-            border: 1px solid #ccc;
             border-radius: 8px;
-            padding: 15px;
-            width: 250px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            text-align: center;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            position: relative;
         }
-        .produto-card img {
+
+        .produto-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .produto-imagem {
             width: 100%;
-            height: auto;
-            border-radius: 4px;
+            height: 180px;
+            object-fit: cover;
         }
-        .produto-card h3 {
-            margin: 10px 0 5px;
+
+        .produto-info {
+            padding: 15px;
         }
-        .produto-card p {
-            margin: 5px 0;
+
+        .produto-nome {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--dark);
         }
-        .preco {
+
+        .produto-descricao {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .produto-preco {
             font-weight: bold;
-            color: #28a745;
+            color: var(--success);
+            font-size: 16px;
+        }
+
+        .produto-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 2;
+        }
+
+        .card-menu-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .card-menu-btn:hover {
+            background: white;
+        }
+
+        .card-dropdown {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: none;
+            min-width: 120px;
+        }
+
+        .card-dropdown.show {
+            display: block;
+        }
+
+        .card-dropdown button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 12px;
+            text-align: left;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .card-dropdown button:hover {
+            background-color: #f8f9fa;
+        }
+
+        .card-dropdown button.edit {
+            color: var(--primary);
+        }
+
+        .card-dropdown button.delete {
+            color: var(--danger);
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            display: none;
+            z-index: 1100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .notification.success {
+            background-color: var(--success);
+        }
+
+        .notification.error {
+            background-color: var(--danger);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .header-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .cardapio-container {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
         <div class="header-content">
-            <button class="btn" onclick="location.href='mostrarcardapio.php'">Cardápio</button>
-            <button class="btn" onclick="location.href='historicopedidos.php'">Histórico de Pedidos</button>
-            <button class="btn" onclick="location.href='clientes.php'">Clientes</button>
-            <button class="btn" onclick="location.href='adicionarcliente.php'">Adicionar Cliente</button>
-            <button class="btn" onclick="location.href='adicionarcardapio.php'">Adicionar Cardápio</button>
-            <button class="btn logout" onclick="location.href='logout.php'">Logout</button>
+            <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
+            <div class="header-buttons">
+                <button class="btn" onclick="location.href='index_gerente.php'">
+                    <i class="fas fa-home"></i> Início
+                </button>
+                <button class="btn" onclick="location.href='historicopedidos.php'">
+                    <i class="fas fa-history"></i> Histórico
+                </button>
+                <button class="btn" onclick="location.href='clientes.php'">
+                    <i class="fas fa-users"></i> Clientes
+                </button>
+                <button class="btn logout" onclick="location.href='logout.php'">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
         </div>
     </header>
 
-    <main>
-        <h2 style="text-align: center;">Nosso Cardápio</h2>
+    <div class="container">
+        <button class="btn add" onclick="location.href='adicionarcardapio.php'">
+            <i class="fas fa-plus"></i> Adicionar Item ao Cardápio
+        </button>
 
-        <div class="cardapio">
-            <?php
-            if ($result && $result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    $imagem = htmlspecialchars($row['imagem']) ?: 'https://via.placeholder.com/250x150';
-                    $nome = htmlspecialchars($row['nome']);
-                    $descricao = htmlspecialchars($row['descricao']);
-                    $preco = number_format($row['preco'], 2, ',', '.');
+        <h2>Cardápio</h2>
 
-                    echo "
-                    <div class='produto-card'>
-                        <img src='$imagem' alt='Imagem do produto'>
-                        <h3>$nome</h3>
-                        <p>$descricao</p>
-                        <p class='preco'>R$ $preco</p>
-                    </div>";
-                }
-            } else {
-                echo "<p style='text-align:center;'>Nenhum produto disponível no momento.</p>";
-            }
-
-            $conn->close();
-            ?>
+        <div class="cardapio-container">
+            <?php if (!empty($produtos)): ?>
+                <?php foreach ($produtos as $produto): ?>
+                    <div class="produto-card">
+                        <div class="produto-actions">
+                            <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <div class="card-dropdown">
+                                <button class="edit" onclick="editarProduto(<?= $produto['id'] ?>)">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="delete" onclick="confirmarExclusao(<?= $produto['id'] ?>)">
+                                    <i class="fas fa-trash"></i> Remover
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <img src="<?= htmlspecialchars($produto['imagem'] ?: 'https://via.placeholder.com/300x180') ?>" 
+                             alt="<?= htmlspecialchars($produto['nome']) ?>" 
+                             class="produto-imagem">
+                             
+                        <div class="produto-info">
+                            <h3 class="produto-nome"><?= htmlspecialchars($produto['nome']) ?></h3>
+                            <p class="produto-descricao"><?= htmlspecialchars($produto['descricao']) ?></p>
+                            <p class="produto-preco">R$ <?= number_format($produto['preco'], 2, ',', '.') ?></p>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <p style="grid-column: 1 / -1; text-align: center;">Nenhum produto cadastrado no cardápio.</p>
+            <?php endif; ?>
         </div>
-    </main>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Função para mostrar/ocultar o dropdown de ações
+        function toggleDropdown(event, button) {
+            event.stopPropagation();
+            const dropdown = button.nextElementSibling;
+            const allDropdowns = document.querySelectorAll('.card-dropdown');
+            
+            allDropdowns.forEach(dd => {
+                if (dd !== dropdown) dd.classList.remove('show');
+            });
+            
+            dropdown.classList.toggle('show');
+        }
+
+        // Fechar dropdowns ao clicar fora
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.card-dropdown').forEach(dd => {
+                dd.classList.remove('show');
+            });
+        });
+
+        // Função para editar produto
+        function editarProduto(produtoId) {
+            showNotification('Abrindo produto #' + produtoId + ' para edição...', 'success');
+            // Redirecionar para a página de edição
+            window.location.href = 'adicionarcardapio.php?editar=' + produtoId;
+        }
+
+        // Função para confirmar exclusão
+        function confirmarExclusao(produtoId) {
+            if (confirm(`Tem certeza que deseja remover este produto do cardápio?`)) {
+                fetch('funcoes.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        acao: 'excluir_produto',
+                        produto_id: produtoId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showNotification(data.message, data.success ? 'success' : 'error');
+                    if (data.success) {
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                });
+            }
+        }
+
+        // Função para mostrar notificação
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification ' + type;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+    </script>
 </body>
 </html>
