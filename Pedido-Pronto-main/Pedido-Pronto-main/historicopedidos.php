@@ -1,133 +1,239 @@
 <?php
+require_once 'funcoes.php';
 
-$servername = "localhost"; 
-$username = "root";        
-$password = "";            
-$database = "PedidoProntoDB";
-
-$conn = new mysqli($servername, $username, $password, $database);
-
-if ($conn->connect_error) {
-    die("Conexão falhou: " . $conn->connect_error);
-}
-
-$sql = "SELECT Pedidos.id, Clientes.nome AS cliente_nome, Pedidos.data_pedido, Pedidos.status, Pedidos.observacoes
-        FROM Pedidos
-        JOIN Clientes ON Pedidos.cliente_id = Clientes.id";
-$result = $conn->query($sql);
+$pedidos = buscarPedidos(); // Usando a função do funcoes.php
 ?>
 
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Lista de Pedidos</title>
+    <title>Histórico de Pedidos - PedidoPronto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --warning: #f8961e;
+            --danger: #f94144;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+
+        * {
             margin: 0;
             padding: 0;
-            background-color: #f8f9fa;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
         }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
         header {
-            background-color: #007bff;
+            background-color: var(--primary);
             color: white;
-            padding: 15px 20px;
+            padding: 15px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
         }
-        .header-content {
+
+        .header-buttons {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
         }
+
+        h1, h2 {
+            font-weight: 500;
+        }
+
         .btn {
-            background-color: #17a2b8;
+            background-color: var(--primary);
             color: white;
             border: none;
             padding: 8px 15px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s, transform 0.2s;
+            transition: background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
+
         .btn:hover {
-            background-color: #138496;
-            transform: scale(1.05);
+            background-color: var(--secondary);
         }
+
         .btn.logout {
-            background-color: #dc3545;
+            background-color: var(--danger);
         }
+
         .btn.logout:hover {
             background-color: #c82333;
         }
-        main {
-            padding: 20px;
-        }
-        table {
+
+        .pedidos-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
             background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
         }
-        table, th, td {
-            border: 1px solid #ccc;
-        }
-        th, td {
-            padding: 12px;
+
+        .pedidos-table th, 
+        .pedidos-table td {
+            padding: 12px 15px;
             text-align: left;
+            border-bottom: 1px solid #eee;
         }
-        th {
-            background-color: #f4f4f4;
+
+        .pedidos-table th {
+            background-color: #f8f9fa;
+            font-weight: 500;
+            color: #666;
         }
-        footer {
+
+        .pedidos-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-pendente {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .status-preparando {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .status-pronto {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .status-entregue {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .status-cancelado {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .empty-message {
             text-align: center;
-            padding: 10px;
-            margin-top: 30px;
-            background-color: #f1f1f1;
+            padding: 40px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .header-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .pedidos-table {
+                display: block;
+                overflow-x: auto;
+            }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
         <div class="header-content">
-            <button class="btn" onclick="location.href='mostrarcardapio.php'">Cardápio</button>
-            <button class="btn" onclick="location.href='historicopedidos.php'">Histórico de Pedidos</button>
-            <button class="btn" onclick="location.href='clientes.php'">Clientes</button>
-            <button class="btn" onclick="location.href='adicionarcliente.php'">Adicionar Cliente</button>
-            <button class="btn" onclick="location.href='adicionarcardapio.php'">Adicionar Cardápio</button>
-            <button class="btn logout" onclick="location.href='logout.php'">Logout</button>
+            <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
+            <div class="header-buttons">
+                <button class="btn" onclick="location.href='index_gerente.php'">
+                    <i class="fas fa-home"></i> Início
+                </button>
+                <button class="btn" onclick="location.href='mostrarcardapio.php'">
+                    <i class="fas fa-utensils"></i> Cardápio
+                </button>
+                <button class="btn" onclick="location.href='clientes.php'">
+                    <i class="fas fa-users"></i> Clientes
+                </button>
+                <button class="btn logout" onclick="location.href='logout.php'">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
         </div>
     </header>
 
-    <main>
-        <h2>Pedidos Registrados</h2>
+    <div class="container">
+        <h2>Histórico de Pedidos</h2>
 
-        <?php
-        if ($result->num_rows > 0) {
-            echo "<table>";
-            echo "<tr><th>ID</th><th>Cliente</th><th>Data do Pedido</th><th>Status</th><th>Observações</th></tr>";
-
-            while($row = $result->fetch_assoc()) {
-                echo "<tr>";
-                echo "<td>" . htmlspecialchars($row["id"]) . "</td>";
-                echo "<td>" . htmlspecialchars($row["cliente_nome"]) . "</td>";
-                echo "<td>" . htmlspecialchars($row["data_pedido"]) . "</td>";
-                echo "<td>" . htmlspecialchars($row["status"]) . "</td>";
-                echo "<td>" . htmlspecialchars($row["observacoes"]) . "</td>";
-                echo "</tr>";
-            }
-
-            echo "</table>";
-        } else {
-            echo "<p>Nenhum pedido encontrado.</p>";
-        }
-
-        $conn->close();
-        ?>
-    </main>
+        <?php if (!empty($pedidos)): ?>
+            <table class="pedidos-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Data/Hora</th>
+                        <th>Status</th>
+                        <th>Produtos</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($pedidos as $pedido): ?>
+                        <tr>
+                            <td>#<?= htmlspecialchars($pedido['id']) ?></td>
+                            <td><?= htmlspecialchars($pedido['cliente_nome']) ?></td>
+                            <td><?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></td>
+                            <td>
+                                <span class="status-badge status-<?= strtolower($pedido['status']) ?>">
+                                    <?= htmlspecialchars($pedido['status']) ?>
+                                </span>
+                            </td>
+                            <td><?= htmlspecialchars($pedido['produtos']) ?></td>
+                            <td>R$ <?= number_format($pedido['total'], 2, ',', '.') ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <div class="empty-message">
+                <i class="fas fa-clipboard-list" style="font-size: 48px; margin-bottom: 15px;"></i>
+                <p>Nenhum pedido registrado ainda.</p>
+            </div>
+        <?php endif; ?>
+    </div>
 </body>
 </html>

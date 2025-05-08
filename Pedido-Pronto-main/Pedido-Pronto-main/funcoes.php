@@ -1,4 +1,6 @@
 <?php
+require_once 'conexao.php'; // Importa a conexão
+
 function conectar() {
     $host = 'localhost';
     $usuario = 'root';
@@ -17,10 +19,10 @@ function conectar() {
 function buscarStatusCaixa() {
     $conn = conectar();
     
-    
     $tabelaExiste = $conn->query("SHOW TABLES LIKE 'Caixa'")->num_rows > 0;
     
     if (!$tabelaExiste) {
+        $conn->close();
         return [
             'status' => 'fechado',
             'saldo_inicial' => 0,
@@ -30,14 +32,15 @@ function buscarStatusCaixa() {
         ];
     }
     
-    
     $sql = "SELECT * FROM Caixa ORDER BY id DESC LIMIT 1";
     $result = $conn->query($sql);
     
     if ($result && $result->num_rows > 0) {
-        return $result->fetch_assoc();
+        $dados = $result->fetch_assoc();
+        $conn->close();
+        return $dados;
     } else {
-       
+        $conn->close();
         return [
             'status' => 'aberto',
             'saldo_inicial' => 0,
@@ -55,25 +58,23 @@ function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
 
     switch ($acao) {
         case 'abrir':
-            
             if ($caixaAtual['status'] == 'aberto') {
-                return false; 
+                $conn->close();
+                return false;
             }
 
-           
             $sql = "INSERT INTO Caixa (status, saldo_inicial, saldo_atual, data_abertura, responsavel) 
                     VALUES ('aberto', $valor, $valor, NOW(), ?)";
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param('s', $responsavel); 
+            $stmt->bind_param('s', $responsavel);
             break;
             
         case 'fechar':
-            
             if ($caixaAtual['status'] != 'aberto') {
-                return false; 
+                $conn->close();
+                return false;
             }
 
-            
             $sql = "UPDATE Caixa SET 
                     status = 'fechado', 
                     data_fechamento = NOW() 
@@ -82,12 +83,11 @@ function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
             break;
             
         case 'entrada':
-            
             if ($caixaAtual['status'] != 'aberto') {
-                return false; 
+                $conn->close();
+                return false;
             }
 
-            
             $novoSaldo = $caixaAtual['saldo_atual'] + $valor;
             $sql = "UPDATE Caixa SET 
                     saldo_atual = $novoSaldo
@@ -96,12 +96,11 @@ function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
             break;
             
         case 'saida':
-            
             if ($caixaAtual['status'] != 'aberto') {
-                return false; 
+                $conn->close();
+                return false;
             }
 
-            
             $novoSaldo = $caixaAtual['saldo_atual'] - $valor;
             $sql = "UPDATE Caixa SET 
                     saldo_atual = $novoSaldo
@@ -114,10 +113,10 @@ function atualizarCaixa($acao, $valor = 0, $responsavel = '') {
             return false;
     }
 
-    $stmt->execute();
+    $result = $stmt->execute();
     $stmt->close();
     $conn->close();
-    return true;
+    return $result;
 }
 
 function cadastrarCliente($nome, $telefone, $endereco) {
@@ -145,19 +144,16 @@ function cadastrarPedido($cliente_id, $itens = []) {
     $conn->begin_transaction();
     
     try {
-        
         $stmt = $conn->prepare("INSERT INTO Pedidos (cliente_id) VALUES (?)");
         $stmt->bind_param('i', $cliente_id);
         $stmt->execute();
         $pedido_id = $conn->insert_id;
         $stmt->close();
         
-        
         foreach ($itens as $item) {
             $stmt = $conn->prepare("INSERT INTO ItensPedido 
                                   (pedido_id, produto_id, quantidade, preco_unitario) 
                                   VALUES (?, ?, ?, ?)");
-            
             
             $preco = $conn->query("SELECT preco FROM Produtos WHERE id = {$item['produto_id']}")->fetch_assoc()['preco'];
             
@@ -185,9 +181,8 @@ function buscarPedidos() {
             p.status, 
             p.data_pedido,
             c.nome AS cliente_nome,
-            SUM(ip.quantidade * ip.preco_unitario) AS total_pedido,
-            GROUP_CONCAT(pr.nome SEPARATOR ', ') AS produtos,
-            SUM(ip.quantidade) AS quantidade_total
+            SUM(ip.quantidade * ip.preco_unitario) AS total,
+            GROUP_CONCAT(pr.nome SEPARATOR ', ') AS produtos
         FROM Pedidos p
         JOIN Clientes c ON p.cliente_id = c.id
         LEFT JOIN ItensPedido ip ON ip.pedido_id = p.id
@@ -212,15 +207,24 @@ function buscarPedidos() {
 
 function buscarClientes() {
     $conn = conectar();
-    $result = $conn->query("SELECT id, nome FROM clientes ORDER BY nome");
-
+    
+    $sql = "SELECT id, nome, telefone, endereco, 
+            DATE_FORMAT(data_cadastro, '%d/%m/%Y %H:%i') as data_cadastro 
+            FROM clientes 
+            ORDER BY data_cadastro DESC";
+            
+    $result = $conn->query($sql);
     $clientes = [];
+    
     if ($result) {
         while ($row = $result->fetch_assoc()) {
             $clientes[] = $row;
         }
         $result->free();
+    } else {
+        error_log("Erro ao buscar clientes: " . $conn->error);
     }
+    
     $conn->close();
     return $clientes;
 }
@@ -240,6 +244,23 @@ function buscarProdutos() {
     return $produtos;
 }
 
+function buscarProdutosAtivos() {
+    $conn = conectar();
+    $sql = "SELECT id, nome, descricao, preco, imagem FROM produtos WHERE ativo = 1";
+    $result = $conn->query($sql);
+    
+    $produtos = [];
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $produtos[] = $row;
+        }
+        $result->free();
+    }
+    
+    $conn->close();
+    return $produtos;
+}
+
 function atualizarStatus($pedido_id, $status) {
     $conn = conectar();
     $stmt = $conn->prepare("UPDATE pedidos SET status = ? WHERE id = ?");
@@ -249,17 +270,14 @@ function atualizarStatus($pedido_id, $status) {
     $conn->close();
     return $result;
 }
-function buscarProdutosAtivos() {
-    global $conn; // Assume que $conn já está definido como sua conexão MySQL
-    
-    $sql = "SELECT id, nome, descricao, preco, imagem FROM produtos WHERE ativo = 1";
-    $result = $conn->query($sql);
-    
-    if (!$result) {
-        return []; // Retorna array vazio se houver erro
-    }
-    
-    return $result->fetch_all(MYSQLI_ASSOC);
-}
 
+function excluirCliente($id) {
+    $conn = conectar();
+    $stmt = $conn->prepare("DELETE FROM clientes WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $result = $stmt->execute();
+    $stmt->close();
+    $conn->close();
+    return $result;
+}
 ?>
