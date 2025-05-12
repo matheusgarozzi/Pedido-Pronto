@@ -1,7 +1,6 @@
 <?php
 require_once 'funcoes.php';
 
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
     $response = ['success' => false, 'message' => ''];
@@ -17,7 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $response = ['success' => true, 'message' => 'Produto cadastrado!'];
                 break;
             case 'pedido':
-                // Modificação para lidar com múltiplos itens
                 if (isset($data['cliente_id']) && isset($data['itens']) && is_array($data['itens'])) {
                     $pedido_id = cadastrarPedido($data['cliente_id'], $data['itens']);
                     if ($pedido_id) {
@@ -33,16 +31,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 atualizarStatus($data['pedido_id'], $data['status']);
                 $response = ['success' => true, 'message' => 'Status atualizado!'];
                 break;
+            case 'cancelar':
+                cancelarPedido($data['pedido_id']);
+                $response = ['success' => true, 'message' => 'Pedido cancelado!'];
+                break;
             case 'caixa':
                 atualizarCaixa($data['acao'], $data['valor']);
                 $response = ['success' => true, 'message' => 'Caixa atualizado!'];
                 break;
-        }
+        
+            case 'editar_produto':
+                $resultado = editarItensPedido($data['pedido_id'], $data['itens']);
+                $response = ['success' => $resultado, 'message' => $resultado ? 'Pedido atualizado com sucesso!' : 'Erro ao atualizar pedido.'];
+                break;    
+            }
     }
     echo json_encode($response);
     exit;
 }
-
 
 $pedidos = buscarPedidos();
 $clientes = buscarClientes();
@@ -53,9 +59,9 @@ $caixa = buscarStatusCaixa();
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>PedidoPronto</title>
+    <title>PedidoPronto - Gerente</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQmQa7TBcCJIBayjilWXgQvrji1FdspR/oucPQXwJQhlTv/sgfXD9GcUp+OlL9jxediN2ytimY9yy6g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         :root {
             --primary: #4361ee;
@@ -97,12 +103,42 @@ $caixa = buscarStatusCaixa();
             display: flex;
             justify-content: space-between;
             align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 0 20px;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         h1 {
             font-size: 24px;
             font-weight: 500;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: var(--secondary);
+        }
+
+        .btn.logout {
+            background-color: var(--danger);
+        }
+
+        .btn.logout:hover {
+            background-color: #c82333;
         }
 
         .caixa-info {
@@ -125,10 +161,12 @@ $caixa = buscarStatusCaixa();
         .caixa-valores {
             display: flex;
             gap: 20px;
+            flex-wrap: wrap;
         }
 
         .caixa-valor {
             text-align: center;
+            min-width: 120px;
         }
 
         .caixa-valor span {
@@ -162,10 +200,13 @@ $caixa = buscarStatusCaixa();
             display: flex;
             gap: 20px;
             margin-top: 20px;
+            overflow-x: auto;
+            padding-bottom: 20px;
         }
 
         .kanban-column {
             flex: 1;
+            min-width: 280px;
             background-color: white;
             border-radius: 8px;
             padding: 15px;
@@ -195,10 +236,12 @@ $caixa = buscarStatusCaixa();
             margin-bottom: 15px;
             cursor: grab;
             transition: transform 0.2s;
+            position: relative;
         }
 
         .card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
         .card-header {
@@ -217,18 +260,69 @@ $caixa = buscarStatusCaixa();
             font-size: 14px;
         }
 
-        .btn {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
+        .card-actions {
+            position: relative;
         }
 
-        .btn:hover {
-            background-color: var(--secondary);
+        .card-menu-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0 5px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .card-menu-btn:hover {
+            background-color: #e9ecef;
+        }
+
+        .card-dropdown {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: none;
+            min-width: 120px;
+        }
+
+        .card-dropdown.show {
+            display: block;
+        }
+
+        .card-dropdown button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 8px 12px;
+            text-align: left;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .card-dropdown button:hover {
+            background-color: #f8f9fa;
+        }
+
+        .card-dropdown button.edit {
+            color: var(--primary);
+        }
+
+        .card-dropdown button.cancel {
+            color: var(--danger);
         }
 
         .modal {
@@ -249,7 +343,29 @@ $caixa = buscarStatusCaixa();
             padding: 25px;
             border-radius: 8px;
             width: 90%;
-            max-width: 600px; /* Aumentei o max-width para acomodar mais conteúdo */
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--primary);
+        }
+
+        .modal-header .close {
+            background: none;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #666;
         }
 
         .form-group {
@@ -260,6 +376,7 @@ $caixa = buscarStatusCaixa();
             display: block;
             margin-bottom: 5px;
             font-weight: 500;
+            font-size: 14px;
         }
 
         input, select {
@@ -267,6 +384,7 @@ $caixa = buscarStatusCaixa();
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            font-size: 14px;
         }
 
         .notification {
@@ -276,28 +394,19 @@ $caixa = buscarStatusCaixa();
             transform: translateX(-50%);
             background-color: var(--primary);
             color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 12px 24px;
+            border-radius: 4px;
             display: none;
             z-index: 1100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+        .notification.success {
+            background-color: var(--success);
         }
 
-        .modal-header h3 {
-            margin: 0;
-        }
-
-        .modal-header button {
-            background: none;
-            border: none;
-            font-size: 1.5em;
-            cursor: pointer;
+        .notification.error {
+            background-color: var(--danger);
         }
 
         #itensContainer .item-pedido {
@@ -306,149 +415,93 @@ $caixa = buscarStatusCaixa();
             margin-bottom: 10px;
             border-radius: 5px;
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr auto; 
+            grid-template-columns: 2fr 1fr 1fr auto;
             gap: 10px;
             align-items: center;
         }
 
         #itensContainer .item-pedido .form-group {
-            margin-bottom: 5px;
+            margin-bottom: 0;
         }
 
         #itensContainer .item-pedido .subtotal {
             font-weight: bold;
+            font-size: 14px;
         }
 
-        #itensContainer .item-pedido button {
-            background-color: #ff6b6b;
+        #itensContainer .item-pedido button.remove-item {
+            background-color: var(--danger);
             color: white;
             border: none;
-            padding: 8px 10px;
+            padding: 8px;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
         }
 
-        #itensContainer .item-pedido button:hover {
-            background-color: #e05252;
+        #itensContainer .item-pedido button.remove-item:hover {
+            background-color: #dc3545;
         }
 
         #totalPedido {
-            font-size: 1.4em;
+            font-size: 1.2em;
+            font-weight: bold;
             color: var(--secondary);
+            margin: 15px 0;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
         }
 
-        #itensContainer .item-pedido label {
-            font-size: 0.9em;
-        }
-
-        #itensContainer .item-pedido input,
-        #itensContainer .item-pedido select {
-            padding: 8px;
-            font-size: 0.9em;
-        }
-
-        #itensContainer .item-pedido .form-group:last-child {
-            margin-bottom: 0;
-        }
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f8f9fa;
-        }
-        header {
-            background-color: #007bff;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .header-content {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        .btn {
-            background-color: #17a2b8;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s, transform 0.2s;
-        }
-        .btn:hover {
-            background-color: #138496;
-            transform: scale(1.05);
-        }
-        .btn.logout {
-            background-color: #dc3545;
-        }
-        .btn.logout:hover {
-            background-color: #c82333;
-        }
-        main {
-            padding: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background-color: white;
-        }
-        table, th, td {
-            border: 1px solid #ccc;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #f4f4f4;
-        }
-        footer {
-            text-align: center;
-            padding: 10px;
-            margin-top: 30px;
-            background-color: #f1f1f1;
-        }
-                .header-content {
-            display: flex;
-            justify-content: space-between; /* título de um lado, botões do outro */
-            align-items: center;
-            width: 100%;
-        }
-
-        .header-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: flex-end;
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .header-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .kanban-container {
+                flex-direction: column;
+            }
+            
+            .kanban-column {
+                min-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    
     <header>
         <div class="header-content">
-            <h1>PedidoPronto</h1>
-            <div class="header-content">
-                <button class="btn" onclick="openModal('pedido')">Novo Pedido</button>
-                <button class="btn" onclick="location.href='mostrarcardapio.php'">Cardápio</button>
-                <button class="btn" onclick="location.href='historicopedidos.php'">Histórico de Pedidos</button>
-                <button class="btn" onclick="location.href='clientes.php'">Clientes</button>
-                <button class="btn" onclick="location.href='adicionarcliente.php'">Adicionar Cliente</button>
-                <button class="btn" onclick="location.href='adicionarcardapio.php'">Adicionar Cardápio</button>
-                <button class="btn logout" onclick="location.href='logout.php'">Logout</button>
-                
+            <h1>PedidoPronto - Gerente</h1>
+            <div class="header-buttons">
+                <button class="btn" onclick="openModal('pedido')">
+                    <i class="fas fa-plus"></i> Novo Pedido
+                </button>
+                <button class="btn" onclick="location.href='mostrarcardapio.php'">
+                    <i class="fas fa-utensils"></i> Cardápio
+                </button>
+                <button class="btn" onclick="location.href='historicopedidos.php'">
+                    <i class="fas fa-history"></i> Histórico
+                </button>
+                <button class="btn" onclick="location.href='clientes.php'">
+                    <i class="fas fa-users"></i> Clientes
+                </button>
+                <button class="btn logout" onclick="location.href='logout.php'">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
             </div>
+        </div>
     </header>
+
     <div class="container">
-        
         <div class="caixa-info">
             <div class="caixa-status">
                 <h2>Situação do Caixa</h2>
@@ -477,37 +530,69 @@ $caixa = buscarStatusCaixa();
                 </div>
             </div>
         </div>
-    </div>
+
         <div class="kanban-container">
             <div class="kanban-column" id="pendente" ondragover="allowDrop(event)" ondrop="drop(event, 'pendente')">
                 <div class="column-header">
                     <h3 class="column-title">Pendente</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pendente')) ?></span>
                 </div>
-                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pendente'): ?>
-                        <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                            <div class="card-header">
-                                <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                            </div>
-                            <div class="card-body">
-                                <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                                <p><strong>Produto:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pendente'): ?>
+                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                        <div class="card-header">
+                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                        <div class="card-body">
+                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
+                        </div>
+                    </div>
                 <?php endif; endforeach; ?>
             </div>
 
             <div class="kanban-column" id="preparando" ondragover="allowDrop(event)" ondrop="drop(event, 'preparando')">
                 <div class="column-header">
                     <h3 class="column-title">Em Preparo</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'preparando')) ?></span>
                 </div>
                 <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'preparando'): ?>
                     <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
                         <div class="card-header">
                             <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body">
                             <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                            <p><strong>Produto:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
                         </div>
                     </div>
                 <?php endif; endforeach; ?>
@@ -516,15 +601,31 @@ $caixa = buscarStatusCaixa();
             <div class="kanban-column" id="pronto" ondragover="allowDrop(event)" ondrop="drop(event, 'pronto')">
                 <div class="column-header">
                     <h3 class="column-title">Pronto</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pronto')) ?></span>
                 </div>
                 <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pronto'): ?>
                     <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
                         <div class="card-header">
                             <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body">
                             <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                            <p><strong>Produto:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
                         </div>
                     </div>
                 <?php endif; endforeach; ?>
@@ -533,15 +634,31 @@ $caixa = buscarStatusCaixa();
             <div class="kanban-column" id="entregue" ondragover="allowDrop(event)" ondrop="drop(event, 'entregue')">
                 <div class="column-header">
                     <h3 class="column-title">Entregue</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'entregue')) ?></span>
                 </div>
                 <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'entregue'): ?>
                     <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
                         <div class="card-header">
                             <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body">
                             <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                            <p><strong>Produto:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
                         </div>
                     </div>
                 <?php endif; endforeach; ?>
@@ -549,11 +666,26 @@ $caixa = buscarStatusCaixa();
         </div>
     </div>
 
+    <div class="modal" id="modalEditarPedido">
+    <div class="modal-content">
+        <h3>Editar Pedido</h3>
+        <input type="hidden" id="edit_pedido_id">
+
+        <div id="edit_itens_container">
+            <!-- produtos serão inseridos aqui via JS -->
+        </div>
+
+        <button class="btn" onclick="salvarEdicaoPedido()">Salvar Alterações</button>
+        <button class="btn" style="background:#ccc;" onclick="fecharModalEditar()">Cancelar</button>
+    </div>
+</div>
+
+    <!-- Modal de Novo Pedido -->
     <div class="modal" id="pedidoModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Novo Pedido</h3>
-                <button onclick="closeModal()">&times;</button>
+                <button class="close" onclick="closeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -562,7 +694,7 @@ $caixa = buscarStatusCaixa();
                         <option value="">Selecione um cliente</option>
                         <?php foreach ($clientes as $cliente): ?>
                             <option value="<?= $cliente['id'] ?>">
-                                <?= htmlspecialchars($cliente['nome']) ?>
+                                <?= htmlspecialchars($cliente['nome']) ?> - <?= $cliente['telefone'] ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -590,7 +722,9 @@ $caixa = buscarStatusCaixa();
                             <label>Subtotal</label>
                             <span class="subtotal">R$ 0,00</span>
                         </div>
-                        <button type="button" class="btn" style="background-color: #ff6b6b;" onclick="removerItem(this)">Remover Item</button>
+                        <button type="button" class="remove-item" onclick="removerItem(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -603,7 +737,9 @@ $caixa = buscarStatusCaixa();
                     <span id="totalPedido">R$ 0,00</span>
                 </div>
 
-                <button type="button" class="btn" onclick="enviarPedido()" style="margin-top: 15px;">Salvar Pedido</button>
+                <button type="button" class="btn" onclick="enviarPedido()" style="margin-top: 15px; width: 100%;">
+                    <i class="fas fa-save"></i> Salvar Pedido
+                </button>
             </div>
         </div>
     </div>
@@ -611,22 +747,120 @@ $caixa = buscarStatusCaixa();
     <div class="notification" id="notification"></div>
 
     <script>
-        
-        let itemCount = 1;
+        // Funções para o menu de ações nos cards
+        function toggleDropdown(event, button) {
+            event.stopPropagation();
+            const dropdown = button.nextElementSibling;
+            const allDropdowns = document.querySelectorAll('.card-dropdown');
+            
+            allDropdowns.forEach(dd => {
+                if (dd !== dropdown) dd.classList.remove('show');
+            });
+            
+            dropdown.classList.toggle('show');
+        }
 
-        
+        // Fechar dropdowns ao clicar fora
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.card-dropdown').forEach(dd => {
+                dd.classList.remove('show');
+            });
+        });
+
+        // Função para editar pedido
+        function editarPedido(pedidoId) {
+            showNotification('Abrindo pedido #' + pedidoId + ' para edição...', 'success');
+            // Aqui você pode implementar a lógica para abrir um modal de edição
+            // ou redirecionar para uma página de edição específica
+        }
+
+        // Função para cancelar pedido
+        function cancelarPedido(pedidoId) {
+            if (confirm(`Tem certeza que deseja cancelar o pedido #${pedidoId}?`)) {
+                fetch('index_gerente.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        form: 'cancelar',
+                        pedido_id: pedidoId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showNotification(data.message, data.success ? 'success' : 'error');
+                    if (data.success) {
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                });
+            }
+        }
+
+        // Função para mostrar notificação
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification ' + type;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Funções para drag and drop
+        let draggedPedidoId = null;
+
+        function drag(event) {
+            draggedPedidoId = event.target.id;
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drop(event, status) {
+            event.preventDefault();
+            
+            if (!draggedPedidoId) return;
+            
+            const pedidoId = draggedPedidoId.split('-')[1];
+            
+            fetch('index_gerente.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    form: 'update',
+                    pedido_id: pedidoId,
+                    status: status
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const pedidoElement = document.getElementById(draggedPedidoId);
+                    document.getElementById(status).appendChild(pedidoElement);
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            });
+        }
+
+        // Funções para o modal de pedido
         function openModal(modalId) {
             document.getElementById(modalId + 'Modal').style.display = 'flex';
         }
 
-        
         function closeModal() {
-            document.querySelectorAll('.modal').forEach(modal => modal.style.display = 'none');
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.style.display = 'none';
+            });
         }
-
-        
-
-        function abrirCaixa() {
+                function abrirCaixa() {
     const valor = prompt("Digite o valor para abrir o caixa:");
     if (valor) {
         fetch('index.php', {
@@ -674,6 +908,7 @@ function fecharCaixa() {
     }
 }
 
+        // Funções para adicionar/remover itens do pedido
         function adicionarItem() {
             const container = document.getElementById('itensContainer');
             const novoItem = document.createElement('div');
@@ -698,32 +933,35 @@ function fecharCaixa() {
                     <label>Subtotal</label>
                     <span class="subtotal">R$ 0,00</span>
                 </div>
-                <button type="button" class="btn" style="background-color: #ff6b6b;" onclick="removerItem(this)">Remover Item</button>
+                <button type="button" class="remove-item" onclick="removerItem(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
             `;
 
             container.appendChild(novoItem);
-            itemCount++;
-
-           
+            
+            // Adiciona os event listeners para o novo item
             novoItem.querySelector('.produto-select').addEventListener('change', calcularSubtotal);
             novoItem.querySelector('.quantidade-input').addEventListener('input', calcularSubtotal);
         }
 
-        
         function removerItem(btn) {
             const item = btn.closest('.item-pedido');
-            item.remove();
-            calcularTotal();
+            if (document.querySelectorAll('.item-pedido').length > 1) {
+                item.remove();
+                calcularTotal();
+            } else {
+                showNotification('O pedido deve ter pelo menos um item.', 'error');
+            }
         }
 
-        
         function calcularSubtotal(event) {
             const item = event.target.closest('.item-pedido');
             const select = item.querySelector('.produto-select');
             const input = item.querySelector('.quantidade-input');
             const subtotalSpan = item.querySelector('.subtotal');
 
-            const preco = parseFloat(select.selectedOptions[0].dataset.preco || 0);
+            const preco = parseFloat(select.selectedOptions[0]?.dataset.preco || 0);
             const quantidade = parseInt(input.value) || 0;
             const subtotal = preco * quantidade;
 
@@ -731,7 +969,6 @@ function fecharCaixa() {
             calcularTotal();
         }
 
-        
         function calcularTotal() {
             let total = 0;
             document.querySelectorAll('.item-pedido').forEach(item => {
@@ -743,19 +980,16 @@ function fecharCaixa() {
             document.getElementById('totalPedido').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
         }
 
-       
         function enviarPedido() {
             const clienteId = document.getElementById('cliente_id').value;
             const itens = [];
 
-            
             if (!clienteId) {
                 showNotification('Selecione um cliente', 'error');
                 return;
             }
 
-            
-            document.querySelectorAll('.item-pedido').forEach((item, index) => {
+            document.querySelectorAll('.item-pedido').forEach(item => {
                 const produtoId = item.querySelector('.produto-select').value;
                 const quantidade = item.querySelector('.quantidade-input').value;
 
@@ -767,14 +1001,12 @@ function fecharCaixa() {
                 }
             });
 
-            
             if (itens.length === 0) {
                 showNotification('Adicione pelo menos um item ao pedido', 'error');
                 return;
             }
 
-            
-            fetch('index.php', {
+            fetch('index_gerente.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -789,83 +1021,106 @@ function fecharCaixa() {
             .then(data => {
                 showNotification(data.message, data.success ? 'success' : 'error');
                 if (data.success) {
+                    closeModal();
                     setTimeout(() => location.reload(), 1500);
                 }
             });
         }
 
-        
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.className = 'notification ' + type;
-            notification.style.display = 'block';
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 3000);
-        }
-
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelector('.produto-select').addEventListener('change', calcularSubtotal);
-            document.querySelector('.quantidade-input').addEventListener('input', calcularSubtotal);
-        });
-         let draggedPedidoId = null;
-
-    
-    function drag(event) {
-        draggedPedidoId = event.target.id; // Armazena o ID do pedido arrastado
-    }
-
-    
-    function allowDrop(event) {
-        event.preventDefault(); // Impede o comportamento padrão
-    }
-
-    
-    function drop(event, status) {
-        event.preventDefault(); // Impede o comportamento padrão
-
-        
-        fetch('index.php', {
+        function cancelarPedido(id) {
+            if (confirm("Tem certeza que deseja cancelar (excluir) o pedido #" + id + "?")) {
+            fetch('index.php', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                form: 'update',
-                pedido_id: draggedPedidoId.split('-')[1], // Extrai o ID do pedido
-                status: status // Novo status
+                form: 'cancelar',
+                pedido_id: id
             })
         })
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
+            showNotification(data.message, data.success ? 'success' : 'error');
             if (data.success) {
-                // Move o pedido para a nova coluna
-                const pedidoElement = document.getElementById(draggedPedidoId);
-                document.getElementById(status).appendChild(pedidoElement);
-            } else {
-                showNotification(data.message, 'error');
+                location.reload();
             }
         });
     }
+}
+        function editarPedido(id) {
+    fetch('buscar_pedido.php?id=' + id)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('edit_pedido_id').value = id;
+            const container = document.getElementById('edit_itens_container');
+            container.innerHTML = '';
 
-    
-    function showNotification(message, type = 'success') {
-        const notification = document.getElementById('notification');
-        notification.textContent = message;
-        notification.className = 'notification ' + type;
-        notification.style.display = 'block';
-        setTimeout(() => {
-            notification.style.display = 'none';
-        }, 3000);
-    }
+            data.itens.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <label>Produto ${index + 1}</label>
+                    <select class="edit-produto-select" data-quantidade="${item.quantidade}">
+                        ${data.produtos.map(prod =>
+                            `<option value="${prod.id}" ${prod.id == item.produto_id ? 'selected' : ''}>
+                                ${prod.nome} - R$ ${parseFloat(prod.preco).toFixed(2).replace('.', ',')}
+                            </option>`).join('')}
+                    </select>
+                `;
+                container.appendChild(div);
+            });
 
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.card').forEach(card => {
-            card.addEventListener('dragstart', drag);
+            document.getElementById('modalEditarPedido').style.display = 'flex';
+        });
+}
+
+function fecharModalEditar() {
+    document.getElementById('modalEditarPedido').style.display = 'none';
+}
+
+        function salvarEdicaoPedido() {
+    const pedido_id = document.getElementById('edit_pedido_id').value;
+    const novosItens = [];
+
+    document.querySelectorAll('.edit-produto-select').forEach(select => {
+        novosItens.push({
+            produto_id: select.value,
+            quantidade: select.dataset.quantidade
         });
     });
+
+    fetch('index.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            form: 'editar_produto',
+            pedido_id: pedido_id,
+            itens: novosItens
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        showNotification(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+            fecharModalEditar();
+            location.reload();
+        }
+    });
+}
+
+        // Inicializa os event listeners quando o DOM estiver carregado
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners para o primeiro item do pedido
+            document.querySelector('.produto-select')?.addEventListener('change', calcularSubtotal);
+            document.querySelector('.quantidade-input')?.addEventListener('input', calcularSubtotal);
+            
+            // Fecha o modal ao pressionar ESC
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
     </script>
 </body>
 </html>
