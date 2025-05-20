@@ -404,7 +404,7 @@ $clientes = $conn->query("SELECT * FROM Clientes");
 <body>
         <header>
         <div class="header-content">
-            <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
+            <h1><a href="index_gerente.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
             <div class="header-buttons">
                 <button class="btn" onclick="location.href='index_gerente.php'">
                     <i class="fas fa-home"></i> Início
