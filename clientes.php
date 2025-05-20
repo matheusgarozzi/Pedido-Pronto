@@ -9,7 +9,6 @@ if ($conn->connect_error) {
     die("Conexão falhou: " . $conn->connect_error);
 }
 
-// Atualizar cliente
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['editar_id'])) {
     $id = intval($_POST['editar_id']);
     $nome = $conn->real_escape_string($_POST['editar_nome']);
