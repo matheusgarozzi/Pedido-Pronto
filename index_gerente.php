@@ -65,10 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'editar') {
         $id = $_POST['id'] ?? null;
-        $produto_id = $_POST['produto_id'] ?? null;
+        $novoProduto = $_POST['produto_id'] ?? null;
 
-        if ($id !== null && $produto_id!== null) {
-            editarPedidoProduto($id, $dproduto_id);
+        if ($id !== null && $novoProduto!== null) {
+            editarPedidoProduto($id, $novoProduto);
         }
             echo "Pedido #$id atualizado com sucesso!";
             exit;
@@ -590,6 +590,11 @@ $caixa = buscarStatusCaixa();
                             <form method="post" style="margin-bottom: 8px;">
                                 <input type="hidden" name="action" value="editar">
                                 <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                    <select name="produto_id" required>
+                                        <?php foreach ($produtos as $produto): ?>
+                                            <option value="<?= $produto['id'] ?>"><?= $produto['nome'] ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 <button type="submit" class="btn edit" style="width: 100%; text-align: left;"><i class="fas fa-edit"></i> Editar</button>
                             </form>
                             <form method="post" onsubmit="return confirm('Deseja mesmo excluir o pedido?')">

@@ -280,7 +280,7 @@ function excluirPedido($id) {
     return true;
 }
 
-function editarPedidoProduto($pedido_id, $novo_produto_id) {
+function editarPedidoProduto($pedido_id, $novoProduto) {
     $conn = conectar();
 
     // remover os produtos antigos
@@ -291,7 +291,7 @@ function editarPedidoProduto($pedido_id, $novo_produto_id) {
 
     // buscar preço do novo produto
     $stmt = $conn->prepare("SELECT preco FROM Produtos WHERE id = ?");
-    $stmt->bind_param("i", $novo_produto_id);
+    $stmt->bind_param("i", $novoProduto);
     $stmt->execute();
     $stmt->bind_result($preco);
     $stmt->fetch();
@@ -300,7 +300,7 @@ function editarPedidoProduto($pedido_id, $novo_produto_id) {
     // inserir novo produto
     $quantidade = 1;
     $stmt = $conn->prepare("INSERT INTO ItensPedido (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("iiid", $pedido_id, $novo_produto_id, $quantidade, $preco);
+    $stmt->bind_param("iiid", $pedido_id, $novoProduto, $quantidade, $preco);
     $stmt->execute();
     $stmt->close();
 
