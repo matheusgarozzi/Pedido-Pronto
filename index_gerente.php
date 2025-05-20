@@ -600,8 +600,9 @@ $caixa = buscarStatusCaixa();
                             <form method="post" onsubmit="return confirm('Deseja mesmo excluir o pedido?')">
                                 <input type="hidden" name="action" value="excluir">
                                 <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
-                                <button type="submit" class="btn cancel" style="width: 100%; text-align: left;"><i class="fas fa-times"></i> Cancelar</button>
-                            </form>
+<button type="button" class="btn cancel" style="width: 100%; text-align: left;" onclick="location.href='logout.php'">
+  <i class="fas fa-times"></i> Cancelar
+</button>                            </form>
                         </div>
                     </div>
                 </div>

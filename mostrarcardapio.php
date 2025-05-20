@@ -2,6 +2,24 @@
 require_once 'conexao.php'; // Certifique-se que está incluindo o arquivo com a conexão
 require_once 'funcoes.php'; 
 
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if ($input['acao'] === 'excluir_produto' && isset($input['produto_id'])) {
+        $produtoId = intval($input['produto_id']);
+        $stmt = $pdo->prepare("DELETE FROM produtos WHERE id = ?");
+        $success = $stmt->execute([$produtoId]);
+
+        echo json_encode([
+            'success' => $success,
+            'message' => $success ? 'Produto excluído com sucesso!' : 'Erro ao excluir produto.'
+        ]);
+        exit;
+    }
+}
+
+
 @session_start();
 
 $produtos = buscarProdutosAtivos();
@@ -295,11 +313,54 @@ $produtos = buscarProdutosAtivos();
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <div class="card-dropdown">
-                                <button class="edit" onclick="editarProduto(<?= $produto['id'] ?>)">
+                                                                <!-- Botões -->
+                                <button class="edit" onclick="mostrarFormularioEdicao(<?= $produto['id'] ?>)">
                                     <i class="fas fa-edit"></i> Editar
                                 </button>
                                 <button class="delete" onclick="confirmarExclusao(<?= $produto['id'] ?>)">
                                     <i class="fas fa-trash"></i> Remover
+                                </button>
+
+                                <!-- Container vazio onde o formulário será inserido -->
+                                <div id="container-form-<?= $produto['id'] ?>"></div>
+
+                                <script>
+                                function mostrarFormularioEdicao(id) {
+                                    const container = document.getElementById('container-form-' + id);
+
+                                    // Se o formulário já existir, não cria outro
+                                    if (container.innerHTML.trim() !== '') return;
+
+                                    // Cria o formulário com template literal JS
+                                    const formulario = `
+                                        <form action="atualizar_produto.php" method="POST" style="margin-top: 10px;">
+                                            <input type="hidden" name="id" value="${id}">
+
+                                            <label>Nome:</label>
+                                            <input type="text" name="nome" required>
+
+                                            <label>Preço:</label>
+                                            <input type="number" name="preco" step="0.01" required>
+
+                                            <label>Descrição:</label>
+                                            <textarea name="descricao"></textarea>
+
+                                            <button type="submit">Salvar</button>
+                                            <button type="button" onclick="fecharFormulario(${id})">Cancelar</button>
+                                        </form>
+                                    `;
+
+                                    container.innerHTML = formulario;
+
+                                    // Você pode querer preencher os campos aqui via JS ou deixar vazio para o usuário preencher
+                                    // Se quiser os valores atuais, pode enviar via data-attributes ou montar o formulário no PHP e só mostrar ele aqui
+                                }
+
+                                function fecharFormulario(id) {
+                                    document.getElementById('container-form-' + id).innerHTML = '';
+                                }
+</script>
+
                                 </button>
                             </div>
                         </div>
@@ -343,13 +404,40 @@ $produtos = buscarProdutosAtivos();
                 dd.classList.remove('show');
             });
         });
+        function editarProduto(id, nomeAtual, precoAtual, descricaoAtual) {
+            const nome = prompt("Novo nome do produto:", nomeAtual);
+            if (nome === null) return;
 
-        // Função para editar produto
-        function editarProduto(produtoId) {
-            showNotification('Abrindo produto #' + produtoId + ' para edição...', 'success');
-            // Redirecionar para a página de edição
-            window.location.href = 'adicionarcardapio.php?editar=' + produtoId;
-        }
+            const preco = parseFloat(prompt("Novo preço do produto:", precoAtual));
+            if (isNaN(preco)) return alert("Preço inválido!");
+
+            const descricao = prompt("Nova descrição do produto:", descricaoAtual);
+            if (descricao === null) return;
+
+            fetch('funcoes.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    acao: 'editar_produto',
+                    produto_id: id,
+                    nome: nome,
+                    preco: preco,
+                    descricao: descricao
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                if (data.success) location.reload();
+            })
+            .catch(error => {
+                alert("Erro ao editar produto.");
+                console.error(error);
+            });
+}
+
 
         // Função para confirmar exclusão
         function confirmarExclusao(produtoId) {
@@ -385,6 +473,11 @@ $produtos = buscarProdutosAtivos();
                 notification.style.display = 'none';
             }, 3000);
         }
+    
     </script>
+
+
+
+
 </body>
 </html>
