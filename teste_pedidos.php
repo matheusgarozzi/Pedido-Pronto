@@ -107,7 +107,7 @@ function excluirPedido(id) {
         if (res.ok) {
             location.reload();
         } else {
-            alert('Erro ao excluir o pedido.');
+            alert('Error ao excluir o pedido.');
         }
     });
 }
