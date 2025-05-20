@@ -263,41 +263,80 @@ function excluirCliente($id) {
 
 }
 
-function editarItensPedido($pedido_id, $novosItens) {
+function excluirPedido($id) {
     $conn = conectar();
 
-    try {
-        // Apaga os itens antigos do pedido
-        $stmt = $conn->prepare("DELETE FROM ItensPedido WHERE pedido_id = ?");
-        $stmt->bind_param('i', $pedido_id);
-        $stmt->execute();
-        $stmt->close();
+    $stmt = $conn->prepare("DELETE FROM ItensPedido WHERE pedido_id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
 
-        // Insere os novos itens
-        foreach ($novosItens as $item) {
-            // Buscar o preço atualizado do produto
-            $stmt = $conn->prepare("SELECT preco FROM Produtos WHERE id = ?");
-            $stmt->bind_param('i', $item['produto_id']);
-            $stmt->execute();
-            $stmt->bind_result($preco);
-            $stmt->fetch();
-            $stmt->close();
+    $stmt = $conn->prepare("DELETE FROM Pedidos WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $stmt->close();
 
-            // Inserir novo item no pedido
-            $stmt = $conn->prepare("INSERT INTO ItensPedido (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param('iiid', $pedido_id, $item['produto_id'], $item['quantidade'], $preco);
-            $stmt->execute();
-            $stmt->close();
+    $conn->close();
+    return true;
+}
+
+function editarPedidoProduto($pedido_id, $novo_produto_id) {
+    $conn = conectar();
+
+    // remover os produtos antigos
+    $stmt = $conn->prepare("DELETE FROM ItensPedido WHERE pedido_id = ?");
+    $stmt->bind_param("i", $pedido_id);
+    $stmt->execute();
+    $stmt->close();
+
+    // buscar preço do novo produto
+    $stmt = $conn->prepare("SELECT preco FROM Produtos WHERE id = ?");
+    $stmt->bind_param("i", $novo_produto_id);
+    $stmt->execute();
+    $stmt->bind_result($preco);
+    $stmt->fetch();
+    $stmt->close();
+
+    // inserir novo produto
+    $quantidade = 1;
+    $stmt = $conn->prepare("INSERT INTO ItensPedido (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("iiid", $pedido_id, $novo_produto_id, $quantidade, $preco);
+    $stmt->execute();
+    $stmt->close();
+
+    $conn->close();
+    return true;
+}
+
+
+
+function buscarClientePorId($id) {
+    $conn = conectar();
+    $stmt = $conn->prepare("SELECT * FROM clientes WHERE id = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function atualizarCliente($id, $nome, $telefone, $endereco) {
+    $conn = conectar();
+    $stmt = $conn->prepare("UPDATE clientes SET nome = ?, telefone = ?, endereco = ? WHERE id = ?");
+    return $stmt->execute([$nome, $telefone, $endereco, $id]);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    if ($data && isset($data['acao']) && $data['acao'] === 'excluir_cliente') {
+        $id = intval($data['cliente_id']);
+        if (excluirCliente($id)) {
+            echo json_encode(['success' => true, 'message' => 'Cliente excluído com sucesso.']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Erro ao excluir o cliente.']);
         }
-
-        $conn->close();
-        return true;
-    } catch (Exception $e) {
-        error_log("Erro ao editar itens do pedido: " . $e->getMessage());
-        $conn->close();
-        return false;
+        exit;
     }
 }
+
 
 
 

@@ -2,19 +2,23 @@
 require_once 'funcoes.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = json_decode(file_get_contents("php://input"), true);
     $response = ['success' => false, 'message' => ''];
 
-    if (isset($data['form'])) {
+    // Tentativa de obter JSON puro (como fetch API)
+    $data = json_decode(file_get_contents("php://input"), true);
+
+    if ($data && isset($data['form'])) {
         switch ($data['form']) {
             case 'cliente':
                 cadastrarCliente($data['nome'], $data['telefone'], $data['endereco']);
                 $response = ['success' => true, 'message' => 'Cliente cadastrado!'];
                 break;
+
             case 'produto':
                 cadastrarProduto($data['nome_produto'], $data['preco_produto']);
                 $response = ['success' => true, 'message' => 'Produto cadastrado!'];
                 break;
+
             case 'pedido':
                 if (isset($data['cliente_id']) && isset($data['itens']) && is_array($data['itens'])) {
                     $pedido_id = cadastrarPedido($data['cliente_id'], $data['itens']);
@@ -27,26 +31,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['success' => false, 'message' => 'Dados do pedido incompletos.'];
                 }
                 break;
+
             case 'update':
                 atualizarStatus($data['pedido_id'], $data['status']);
                 $response = ['success' => true, 'message' => 'Status atualizado!'];
                 break;
-            case 'cancelar':
-                cancelarPedido($data['pedido_id']);
-                $response = ['success' => true, 'message' => 'Pedido cancelado!'];
+
+            case 'excluir':
+                excluirPedido($data['pedido_id']); // remove da base como o botão "Excluir"
+                $response = ['success' => true, 'message' => 'Pedido excluído com sucesso!'];
                 break;
+
             case 'caixa':
                 atualizarCaixa($data['acao'], $data['valor']);
                 $response = ['success' => true, 'message' => 'Caixa atualizado!'];
                 break;
-        
-            case 'editar_produto':
-                $resultado = editarItensPedido($data['pedido_id'], $data['itens']);
-                $response = ['success' => $resultado, 'message' => $resultado ? 'Pedido atualizado com sucesso!' : 'Erro ao atualizar pedido.'];
-                break;    
-            }
+        }
+
+        echo json_encode($response);
+        exit;
     }
-    echo json_encode($response);
+
+    // Se estiver usando form-data tradicional (por formulário HTML por exemplo)
+    if (isset($_POST['action'])) {
+        $action = $_POST['action'];
+
+        if ($action === 'excluir') {
+            $id = $_POST['id'];
+            excluirPedido($id);
+            echo "Pedido #$id excluído com sucesso!";
+            exit;
+        }
+
+        if ($action === 'editar') {
+        $id = $_POST['id'] ?? null;
+        $produto_id = $_POST['produto_id'] ?? null;
+
+        if ($id !== null && $produto_id!== null) {
+            editarPedidoProduto($id, $dproduto_id);
+        }
+            echo "Pedido #$id atualizado com sucesso!";
+            exit;
+        }
+    }
+
+    // Se nenhum JSON válido nem form-data for encontrado
+    echo json_encode(['success' => false, 'message' => 'Nenhuma ação reconhecida.']);
     exit;
 }
 
@@ -196,13 +226,13 @@ $caixa = buscarStatusCaixa();
             color: white;
         }
 
-        .kanban-container {
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
-            overflow-x: auto;
-            padding-bottom: 20px;
-        }
+    .kanban-container {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;  /* ADICIONE ESTA LINHA */
+        margin-top: 20px;
+        padding-bottom: 20px;
+    }
 
         .kanban-column {
             flex: 1;
@@ -300,17 +330,28 @@ $caixa = buscarStatusCaixa();
             display: block;
         }
 
+
+        .card-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background-color: white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        z-index: 999;
+        width: 200px;
+        border-radius: 5px;
+        padding: 10px;
+        }
+
+        .card-dropdown select,
         .card-dropdown button {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            width: 100%;
-            padding: 8px 12px;
-            text-align: left;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 13px;
+        width: 100%;
+        margin-top: 5px;
+        }
+
+        .card-dropdown.show {
+            display: block;
         }
 
         .card-dropdown button:hover {
@@ -531,39 +572,45 @@ $caixa = buscarStatusCaixa();
             </div>
         </div>
 
-        <div class="kanban-container">
-            <div class="kanban-column" id="pendente" ondragover="allowDrop(event)" ondrop="drop(event, 'pendente')">
-                <div class="column-header">
-                    <h3 class="column-title">Pendente</h3>
-                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pendente')) ?></span>
-                </div>
-                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pendente'): ?>
-                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                        <div class="card-header">
-                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                            <div class="card-actions">
-                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                    <i class="fas fa-ellipsis-v"></i>
-                                </button>
-                                <div class="card-dropdown">
-                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </button>
-                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-times"></i> Cancelar
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
-                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
-                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
+      <div class="kanban-container">
+    <div class="kanban-column" id="pendente" ondragover="allowDrop(event)" ondrop="drop(event, 'pendente')">
+        <div class="column-header">
+            <h3 class="column-title">Pendente</h3>
+            <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pendente')) ?></span>
+        </div>
+        <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pendente'): ?>
+            <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                <div class="card-header">
+                    <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                    <div class="card-actions" style="position: relative;">
+                        <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="card-dropdown" style="display: none; position: absolute; right: 0; top: 100%; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); border-radius: 6px; z-index: 10; padding: 10px; min-width: 120px;">
+                            <form method="post" style="margin-bottom: 8px;">
+                                <input type="hidden" name="action" value="editar">
+                                <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                <button type="submit" class="btn edit" style="width: 100%; text-align: left;"><i class="fas fa-edit"></i> Editar</button>
+                            </form>
+                            <form method="post" onsubmit="return confirm('Deseja mesmo excluir o pedido?')">
+                                <input type="hidden" name="action" value="excluir">
+                                <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                <button type="submit" class="btn cancel" style="width: 100%; text-align: left;"><i class="fas fa-times"></i> Cancelar</button>
+                            </form>
                         </div>
                     </div>
-                <?php endif; endforeach; ?>
+                </div>
+                <div class="card-body">
+                    <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                    <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                    <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                    <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
+                </div>
             </div>
+        <?php endif; endforeach; ?>
+    </div>
+</div>
+
 
             <div class="kanban-column" id="preparando" ondragover="allowDrop(event)" ondrop="drop(event, 'preparando')">
                 <div class="column-header">
@@ -578,13 +625,23 @@ $caixa = buscarStatusCaixa();
                                 <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
-                                <div class="card-dropdown">
-                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </button>
-                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-times"></i> Cancelar
-                                    </button>
+                                <form method="post" style="margin-bottom: 5px;">
+                                    <input type="hidden" name="action" value="editar">
+                                    <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                    <select name="produto_id">
+                                        <?php foreach ($produtos as $produto): ?>
+                                            <option value="<?= $produto['id'] ?>"><?= $produto['nome'] ?> - R$<?= number_format($produto['preco'], 2, ',', '.') ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="submit">Editar Produto</button>
+                                </form>
+
+                                <!-- Formulário de exclusão -->
+                                <form method="post" onsubmit="return confirm('Deseja mesmo excluir o pedido?')">
+                                    <input type="hidden" name="action" value="excluir">
+                                    <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                    <button type="submit">Excluir</button>
+                                </form>
                                 </div>
                             </div>
                         </div>
@@ -611,13 +668,23 @@ $caixa = buscarStatusCaixa();
                                 <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
-                                <div class="card-dropdown">
-                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </button>
-                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-times"></i> Cancelar
-                                    </button>
+                                <form method="post" style="margin-bottom: 5px;">
+                                    <input type="hidden" name="action" value="editar">
+                                    <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                    <select name="produto_id">
+                                        <?php foreach ($produtos as $produto): ?>
+                                            <option value="<?= $produto['id'] ?>"><?= $produto['nome'] ?> - R$<?= number_format($produto['preco'], 2, ',', '.') ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <button type="submit">Editar Produto</button>
+                                </form>
+
+                                <!-- Formulário de exclusão -->
+                                <form method="post" onsubmit="return confirm('Deseja mesmo excluir o pedido?')">
+                                    <input type="hidden" name="action" value="excluir">
+                                    <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                    <button type="submit">Excluir</button>
+                                </form>
                                 </div>
                             </div>
                         </div>
@@ -631,54 +698,64 @@ $caixa = buscarStatusCaixa();
                 <?php endif; endforeach; ?>
             </div>
 
-            <div class="kanban-column" id="entregue" ondragover="allowDrop(event)" ondrop="drop(event, 'entregue')">
-                <div class="column-header">
-                    <h3 class="column-title">Entregue</h3>
-                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'entregue')) ?></span>
-                </div>
-                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'entregue'): ?>
-                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                        <div class="card-header">
-                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                            <div class="card-actions">
-                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                    <i class="fas fa-ellipsis-v"></i>
-                                </button>
-                                <div class="card-dropdown">
-                                    <button class="edit" onclick="editarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </button>
-                                    <button class="cancel" onclick="cancelarPedido(<?= $pedido['id'] ?>)">
-                                        <i class="fas fa-times"></i> Cancelar
-                                    </button>
+                    <div class="kanban-column" id="entregue" ondragover="allowDrop(event)" ondrop="drop(event, 'entregue')">
+                        <div class="column-header">
+                            <h3 class="column-title">Entregue</h3>
+                            <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'entregue')) ?></span>
+                        </div>
+
+                        <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'entregue'): ?>
+                            <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+
+                                            <!-- Botão de menu com dropdown -->
+                                            <div class="card-menu" style="position: relative;">
+                                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+
+                                                <div class="card-dropdown" style="display: none; position: absolute; top: 100%; right: 0; background-color: white; box-shadow: 0 0 10px rgba(0,0,0,0.2); z-index: 999; width: 200px; border-radius: 5px; padding: 10px;">
+                                                    
+                                                    <!-- Formulário de edição -->
+                                                    <form method="post" style="margin-bottom: 10px;">
+                                                        <input type="hidden" name="action" value="editar">
+                                                        <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                                        <select name="produto_id" style="width: 100%; margin-bottom: 5px;">
+                                                            <?php foreach ($produtos as $produto): ?>
+                                                                <option value="<?= $produto['id'] ?>"><?= $produto['nome'] ?> - R$<?= number_format($produto['preco'], 2, ',', '.') ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                        <button type="submit" style="width: 100%;">Editar Produto</button>
+                                                    </form>
+
+                                                    <!-- Formulário de exclusão -->
+                                                    <form method="post" onsubmit="return confirm('Deseja mesmo excluir o pedido?')">
+                                                        <input type="hidden" name="action" value="excluir">
+                                                        <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                                                        <button type="submit" style="width: 100%;">Excluir</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="card-body">
+                                            <!-- Informações do pedido -->
+                                        </div>
+                                    </div>
+
+
+                                <div class="card-body">
+                                    <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                                    <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                                    <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                                    <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
                                 </div>
                             </div>
-                        </div>
-                        <div class="card-body">
-                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
-                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
-                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
-                        </div>
+                        <?php endif; endforeach; ?>
                     </div>
-                <?php endif; endforeach; ?>
-            </div>
-        </div>
-    </div>
 
-    <div class="modal" id="modalEditarPedido">
-    <div class="modal-content">
-        <h3>Editar Pedido</h3>
-        <input type="hidden" id="edit_pedido_id">
-
-        <div id="edit_itens_container">
-            <!-- produtos serão inseridos aqui via JS -->
-        </div>
-
-        <button class="btn" onclick="salvarEdicaoPedido()">Salvar Alterações</button>
-        <button class="btn" style="background:#ccc;" onclick="fecharModalEditar()">Cancelar</button>
-    </div>
-</div>
 
     <!-- Modal de Novo Pedido -->
     <div class="modal" id="pedidoModal">
@@ -740,6 +817,26 @@ $caixa = buscarStatusCaixa();
                 <button type="button" class="btn" onclick="enviarPedido()" style="margin-top: 15px; width: 100%;">
                     <i class="fas fa-save"></i> Salvar Pedido
                 </button>
+                <!-- Formulário de edição -->
+                <form method="post" style="margin-bottom: 5px;">
+                    <input type="hidden" name="action" value="editar">
+                    <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                    <select name="produto_id">
+                        <?php foreach ($produtos as $produto): ?>
+                            <option value="<?= $produto['id'] ?>"><?= $produto['nome'] ?> - R$<?= number_format($produto['preco'], 2, ',', '.') ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit">Editar Produto</button>
+                </form>
+
+                <!-- Formulário de exclusão -->
+                <form method="post" onsubmit="return confirm('Deseja mesmo excluir o pedido?')">
+                    <input type="hidden" name="action" value="excluir">
+                    <input type="hidden" name="id" value="<?= $pedido['id'] ?>">
+                    <button type="submit">Excluir</button>
+                </form>
+                </form>
+
             </div>
         </div>
     </div>
@@ -748,24 +845,22 @@ $caixa = buscarStatusCaixa();
 
     <script>
         // Funções para o menu de ações nos cards
-        function toggleDropdown(event, button) {
-            event.stopPropagation();
-            const dropdown = button.nextElementSibling;
-            const allDropdowns = document.querySelectorAll('.card-dropdown');
-            
-            allDropdowns.forEach(dd => {
-                if (dd !== dropdown) dd.classList.remove('show');
-            });
-            
-            dropdown.classList.toggle('show');
-        }
+        function toggleDropdown(event, btn) {
+    event.stopPropagation();
+    const dropdown = btn.nextElementSibling;
+    const isOpen = dropdown.style.display === 'block';
 
-        // Fechar dropdowns ao clicar fora
-        document.addEventListener('click', function() {
-            document.querySelectorAll('.card-dropdown').forEach(dd => {
-                dd.classList.remove('show');
-            });
-        });
+    // Fecha todos os outros dropdowns
+    document.querySelectorAll('.card-dropdown').forEach(el => el.style.display = 'none');
+
+    // Abre ou fecha o dropdown atual
+    dropdown.style.display = isOpen ? 'none' : 'block';
+}
+
+// Fecha dropdowns ao clicar fora
+document.addEventListener('click', () => {
+    document.querySelectorAll('.card-dropdown').forEach(el => el.style.display = 'none');
+});
 
         // Função para editar pedido
         function editarPedido(pedidoId) {
@@ -775,15 +870,15 @@ $caixa = buscarStatusCaixa();
         }
 
         // Função para cancelar pedido
-        function cancelarPedido(pedidoId) {
-            if (confirm(`Tem certeza que deseja cancelar o pedido #${pedidoId}?`)) {
+        function excluirPedido(pedidoId) {
+            if (confirm(`Tem certeza que deseja excluir o pedido #${pedidoId}?`)) {
                 fetch('index_gerente.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        form: 'cancelar',
+                        form: 'excluir',
                         pedido_id: pedidoId
                     })
                 })
@@ -1027,7 +1122,7 @@ function fecharCaixa() {
             });
         }
 
-        function cancelarPedido(id) {
+        function excluirPedido(id) {
             if (confirm("Tem certeza que deseja cancelar (excluir) o pedido #" + id + "?")) {
             fetch('index.php', {
             method: 'POST',
