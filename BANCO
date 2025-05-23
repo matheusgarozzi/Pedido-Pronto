@@ -62,3 +62,12 @@ CREATE TABLE pedido_itens (
     FOREIGN KEY (pedido_id) REFERENCES pedidos(id),
     FOREIGN KEY (produto_id) REFERENCES produtos(id)
 );
+CREATE TABLE IF NOT EXISTS Caixa (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    status ENUM('aberto', 'fechado') DEFAULT 'aberto',
+    saldo_inicial DECIMAL(10,2) DEFAULT 0,
+    saldo_atual DECIMAL(10,2) DEFAULT 0,
+    data_abertura DATETIME,
+    data_fechamento DATETIME,
+    responsavel VARCHAR(100)
+);
