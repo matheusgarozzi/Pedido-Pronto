@@ -4,7 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require 'verificalog.php';
+require_once '../Geral/verificalog.php';
 
 // Verifica se é admin
 if ($_SESSION['usuario']['nivel_acesso'] !== 'admin') {
@@ -12,8 +12,9 @@ if ($_SESSION['usuario']['nivel_acesso'] !== 'admin') {
     exit();
 }
 
-// Conexão com o banco (não fechar ainda)
-require 'conexao.php';
+// Conexão com o banco (usando a nova classe Database)
+require_once '../Geral/conexao.php';
+$conn = Database::getInstance()->getConnection();
 
 $erro = '';
 $sucesso = '';
@@ -34,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("A senha deve ter no mínimo 6 caracteres!");
         }
 
-        // Verifica se usuário já existe (usando prepared statements)
+        // Verifica se usuário já existe
         $sql_check = "SELECT id FROM Usuarios WHERE username = ?";
         $stmt_check = $conn->prepare($sql_check);
         $stmt_check->bind_param('s', $username);
@@ -45,13 +46,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Nome de usuário já existe!");
         }
 
-        // Criptografa a senha (melhor usar password_hash na prática)
-        $senha_hash = hash('sha256', $senha);
+        // Criptografa a senha (usando password_hash)
+        $senha_hash = password_hash($senha, PASSWORD_BCRYPT);
 
         // Insere no banco
         $sql_insert = "INSERT INTO Usuarios 
-                      (username, senha, nivel_acesso, data_criacao) 
-                      VALUES (?, ?, ?, NOW())";
+              (username, senha, nivel_acesso, data_criacao) 
+              VALUES (?, ?, ?, NOW())";
         
         $stmt_insert = $conn->prepare($sql_insert);
         $stmt_insert->bind_param('sss', $username, $senha_hash, $nivel);
@@ -67,14 +68,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Busca usuários existentes (usando a mesma conexão)
+// Busca usuários existentes
 $sql_usuarios = "SELECT id, username, nivel_acesso, data_criacao FROM Usuarios";
 $result_usuarios = $conn->query($sql_usuarios);
-
-// Só fecha a conexão no final do arquivo
-$conn->close();
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -171,10 +168,13 @@ $conn->close();
                     <option value="admin">Administrador</option>
                     <option value="gerente">Gerente</option>
                     <option value="atendente">Atendente</option>
+                    <option value="cozinheiro">Cozinheiro</option>
                 </select>
             </div>
 
             <button type="submit">Cadastrar</button>
+            <button type="reset">Limpar</button>
+            <button type="button" onclick="location.href='index_admin.php'">Voltar</button>
         </form>
 
         <h2>Usuários Existentes</h2>
