@@ -1,15 +1,17 @@
 <?php
+// verificalog_compat.php (versão de compatibilidade)
+require_once __DIR__ . '/conexao.php';
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-
-require 'conexao.php';
 
 if (!isset($_SESSION['usuario'])) {
     header("Location: login.php");
     exit();
 }
 
+$conn = Database::getInstance()->getConnection();
 $sql = "SELECT id FROM Usuarios WHERE id = ? AND ativo = 1";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param('i', $_SESSION['usuario']['id']);
@@ -22,5 +24,4 @@ if ($stmt->get_result()->num_rows === 0) {
     exit();
 }
 $stmt->close();
-$conn->close();
 ?>

@@ -1,5 +1,5 @@
 <?php
-require_once 'funcoes.php';
+require_once '../Geral/funcoes.php';
 
 $pedidos = buscarPedidos(); // Usando a função do funcoes.php
 ?>
@@ -180,16 +180,16 @@ $pedidos = buscarPedidos(); // Usando a função do funcoes.php
         <div class="header-content">
             <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
             <div class="header-buttons">
-                <button class="btn" onclick="location.href='index_gerente.php'">
+                <button class="btn" onclick="location.href='../Gerente/index_gerente.php'">
                     <i class="fas fa-home"></i> Início
                 </button>
-                <button class="btn" onclick="location.href='mostrarcardapio.php'">
+                <button class="btn" onclick="location.href='../Cardapio/mostrarcardapio.php'">
                     <i class="fas fa-utensils"></i> Cardápio
                 </button>
-                <button class="btn" onclick="location.href='clientes.php'">
+                <button class="btn" onclick="location.href='../Clientes/clientes.php'">
                     <i class="fas fa-users"></i> Clientes
                 </button>
-                <button class="btn logout" onclick="location.href='logout.php'">
+                <button class="btn logout" onclick="location.href='../Geral/logout.php'">
                     <i class="fas fa-sign-out-alt"></i> Sair
                 </button>
             </div>

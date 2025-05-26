@@ -167,7 +167,7 @@
                 $stmt->bind_param("sss", $nome, $telefone, $endereco);
 
                 if ($stmt->execute()) {
-                    header("Location: index.php");
+                    header("Location: clientes.php");
                     exit;
                 } else {
                     echo "<p class='error-message'>Erro ao salvar o cliente: " . $stmt->error . "</p>";
