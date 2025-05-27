@@ -2,7 +2,7 @@
 require_once '../Geral/funcoes.php';
 
 // Verifica se o ID do pedido foi passado
-if (!isset($_GET['id'])) {  // Faltava o parêntese aqui
+if (!isset($_GET['id'])) {
     header('Location: ../Gerente/index_gerente.php');
     exit;
 }
@@ -16,22 +16,36 @@ if (!$pedido) {
     exit;
 }
 
-// Busca clientes e produtos para os selects
-$clientes = buscarClientes();
+// Busca apenas os produtos (não precisamos mais dos clientes)
 $produtos = buscarProdutos();
 
 // Processa o formulário se for enviado
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $cliente_id = $_POST['cliente_id'];
     $produto_id = $_POST['produto_id'];
-    $quantidade = $_POST['quantidade'];
+    $quantidade = (int)$_POST['quantidade'];
     
-    // Atualiza o pedido no banco de dados
-    if (atualizarPedido($pedido_id, $cliente_id, $produto_id, $quantidade)) {
-        header('Location: index_gerente.php?success=1');
-        exit;
+    // Validação simples do produto
+    $produto_valido = false;
+    foreach ($produtos as $p) {
+        if ($p['id'] == $produto_id) {
+            $produto_valido = true;
+            break;
+        }
+    }
+    
+    if (!$produto_valido) {
+        $erro = "Por favor, selecione um produto válido!";
     } else {
-        $erro = "Erro ao atualizar o pedido!";
+        try {
+            if (editarPedidoProduto($pedido_id, $produto_id, $quantidade)) {
+                header('Location: ../Gerente/index_gerente.php?success=1');
+                exit;
+            } else {
+                $erro = "Falha ao atualizar o pedido";
+            }
+        } catch (Exception $e) {
+            $erro = "Erro: " . $e->getMessage();
+        }
     }
 }
 ?>
@@ -55,21 +69,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <form method="POST" class="mt-4">
             <div class="mb-3">
-                <label for="cliente_id" class="form-label">Cliente</label>
-                <select id="cliente_id" name="cliente_id" class="form-select" required>
-                    <?php foreach ($clientes as $cliente): ?>
-                        <option value="<?= $cliente['id'] ?>" <?= $cliente['id'] == $pedido['cliente_id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($cliente['nome']) ?> - <?= $cliente['telefone'] ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="mb-3">
                 <label for="produto_id" class="form-label">Produto</label>
                 <select id="produto_id" name="produto_id" class="form-select" required>
                     <?php foreach ($produtos as $produto): ?>
-                        <option value="<?= $produto['id'] ?>" <?= $produto['id'] == $pedido['produto_id'] ? 'selected' : '' ?>>
+                        <option value="<?= $produto['id'] ?>" 
+                            <?= ($produto['id'] == ($pedido['produto_id'] ?? 0)) ? 'selected' : '' ?>>
                             <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
                         </option>
                     <?php endforeach; ?>
@@ -78,13 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="mb-3">
                 <label for="quantidade" class="form-label">Quantidade</label>
-                <input type="number" id="quantidade" name="quantidade" class="form-control" min="1" value="<?= $pedido['quantidade'] ?>" required>
+                <input type="number" id="quantidade" name="quantidade" class="form-control" min="1" 
+                       value="<?= $pedido['quantidade'] ?? 1 ?>" required>
             </div>
 
             <button type="submit" class="btn btn-primary">
                 <i class="fas fa-save"></i> Salvar Alterações
             </button>
-            <a href="index_gerente.php" class="btn btn-secondary">
+            <a href="../Gerente/index_gerente.php" class="btn btn-secondary">
                 <i class="fas fa-times"></i> Cancelar
             </a>
         </form>
