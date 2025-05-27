@@ -279,35 +279,58 @@ function excluirPedido($id) {
     $conn->close();
     return true;
 }
-
-function editarPedidoProduto($pedido_id, $novoProduto) {
+function editarPedidoProduto($pedido_id, $produto_id, $quantidade, $preco_unitario = null) {
     $conn = conectar();
 
-    // remover os produtos antigos
+    // Verificar se o produto existe
+    $stmt = $conn->prepare("SELECT id FROM Produtos WHERE id = ?");
+    $stmt->bind_param("i", $produto_id);
+    $stmt->execute();
+    $stmt->store_result();
+    if ($stmt->num_rows === 0) {
+        $stmt->close();
+        $conn->close();
+        throw new Exception("Produto com ID $produto_id não encontrado.");
+    }
+    $stmt->close();
+
+    // Remover os produtos antigos
     $stmt = $conn->prepare("DELETE FROM ItensPedido WHERE pedido_id = ?");
     $stmt->bind_param("i", $pedido_id);
     $stmt->execute();
     $stmt->close();
 
-    // buscar preço do novo produto
-    $stmt = $conn->prepare("SELECT preco FROM Produtos WHERE id = ?");
-    $stmt->bind_param("i", $novoProduto);
-    $stmt->execute();
-    $stmt->bind_result($preco);
-    $stmt->fetch();
-    $stmt->close();
+    // Buscar preço do produto se não foi fornecido
+    if ($preco_unitario === null) {
+        $stmt = $conn->prepare("SELECT preco FROM Produtos WHERE id = ?");
+        $stmt->bind_param("i", $produto_id);
+        $stmt->execute();
+        $stmt->bind_result($preco);
+        if (!$stmt->fetch()) {
+            $stmt->close();
+            $conn->close();
+            throw new Exception("Erro ao buscar preço do produto.");
+        }
+        $stmt->close();
+    } else {
+        $preco = $preco_unitario;
+    }
 
-    // inserir novo produto
-    $quantidade = 1;
+    // Inserir novo item no pedido
     $stmt = $conn->prepare("INSERT INTO ItensPedido (pedido_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("iiid", $pedido_id, $novoProduto, $quantidade, $preco);
-    $stmt->execute();
+    $stmt->bind_param("iiid", $pedido_id, $produto_id, $quantidade, $preco);
+    if (!$stmt->execute()) {
+        $error = $stmt->error;
+        $stmt->close();
+        $conn->close();
+        throw new Exception("Erro ao inserir item no pedido: $error");
+    }
     $stmt->close();
-
     $conn->close();
     return true;
 }
 
+  
 
 
 function buscarClientePorId($id) {
