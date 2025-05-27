@@ -1,21 +1,152 @@
 <?php
-require_once '../Geral/funcoes.php';
+$servername = "localhost";
+$username = "root";
+$password = "";
+$database = "PedidoProntoDB";
 
-// Verifica se está logado (opcional - pode remover se não for necessário)
-@session_start();
+$conn = new mysqli($servername, $username, $password, $database);
+if ($conn->connect_error) {
+    die("Conexão falhou: " . $conn->connect_error);
+}
 
-// Busca os clientes
-$clientes = buscarClientes(); // Você precisará criar esta função em funcoes.php
+// Atualizar cliente
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['editar_id'])) {
+    $id = intval($_POST['editar_id']);
+    $nome = $conn->real_escape_string($_POST['editar_nome']);
+    $telefone = $conn->real_escape_string($_POST['editar_telefone']);
+    $endereco = $conn->real_escape_string($_POST['editar_endereco']);
+
+    $sql = "UPDATE Clientes SET nome=?, telefone=?, endereco=? WHERE id=?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("sssi", $nome, $telefone, $endereco, $id);
+    $stmt->execute();
+    $stmt->close();
+
+    header("Location: clientes.php?sucesso=1");
+    exit;
+}
+
+// Excluir cliente
+if (isset($_GET['excluir'])) {
+    $idExcluir = intval($_GET['excluir']);
+    $conn->query("DELETE FROM Clientes WHERE id = $idExcluir");
+    header("Location: clientes.php?excluido=1");
+    exit;
+}
+
+// Buscar todos os clientes
+$clientes = $conn->query("SELECT * FROM Clientes");
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Clientes - PedidoPronto</title>
+    <title>Cardápio - PedidoPronto</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
+        table {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-collapse: collapse;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+          th, td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        input[type="text"],
+        input[type="tel"],
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        button, a.btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        button:hover, a.btn:hover {
+            background-color: #2563eb;
+        }
+
+        a.btn.delete {
+            background-color: #ef4444;
+        }
+
+        a.btn.delete:hover {
+            background-color: #dc2626;
+        }
+
+        @media (max-width: 640px) {
+            th, td {
+                font-size: 14px;
+                padding: 10px;
+            }
+
+            button, a.btn {
+                padding: 6px 12px;
+                font-size: 13px;
+            }
+        }
+         :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --warning: #f8961e;
+            --danger: #f94144;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
         :root {
             --primary: #4361ee;
             --secondary: #3f37c9;
@@ -105,59 +236,83 @@ $clientes = buscarClientes(); // Você precisará criar esta função em funcoes
             background-color: #3aa8c4;
         }
 
-        .clientes-table {
-            width: 100%;
-            border-collapse: collapse;
+        .cardapio-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .produto-card {
             background-color: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            position: relative;
         }
 
-        .clientes-table th, 
-        .clientes-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
+        .produto-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
 
-        .clientes-table th {
-            background-color: #f8f9fa;
-            font-weight: 500;
+        .produto-imagem {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+        }
+
+        .produto-info {
+            padding: 15px;
+        }
+
+        .produto-nome {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: var(--dark);
+        }
+
+        .produto-descricao {
             color: #666;
+            font-size: 14px;
+            margin-bottom: 12px;
         }
 
-        .clientes-table tr:hover {
-            background-color: #f8f9fa;
+        .produto-preco {
+            font-weight: bold;
+            color: var(--success);
+            font-size: 16px;
         }
 
-        .actions-cell {
-            width: 50px;
-            text-align: center;
+        .produto-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 2;
         }
 
         .card-menu-btn {
-            background: none;
+            background: rgba(255, 255, 255, 0.9);
             border: none;
-            color: #666;
-            cursor: pointer;
-            font-size: 1.2em;
-            padding: 0 5px;
-            width: 24px;
-            height: 24px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         .card-menu-btn:hover {
-            background-color: #e9ecef;
+            background: white;
         }
 
         .card-dropdown {
             position: absolute;
-            right: 10px;
+            right: 0;
+            top: 100%;
             background: white;
             border: 1px solid #ddd;
             border-radius: 4px;
@@ -218,12 +373,6 @@ $clientes = buscarClientes(); // Você precisará criar esta função em funcoes
             background-color: var(--danger);
         }
 
-        .empty-message {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -235,151 +384,78 @@ $clientes = buscarClientes(); // Você precisará criar esta função em funcoes
                 justify-content: center;
             }
             
-            .clientes-table {
-                display: block;
-                overflow-x: auto;
+            .cardapio-container {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <header>
+        <header>
         <div class="header-content">
-            <h1><a href="clientes.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
+            <h1><a href="index_gerente.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
             <div class="header-buttons">
-                <button class="btn" onclick="location.href='../Gerente/index_gerente.php'">
+                <button class="btn" onclick="location.href='index_gerente.php'">
                     <i class="fas fa-home"></i> Início
                 </button>
-                <button class="btn" onclick="location.href='../Cardapio/mostrarcardapio.php'">
-                    <i class="fas fa-utensils"></i> Cardápio
-                </button>
-                <button class="btn" onclick="location.href='../Pedidos/historicopedidos.php'">
+                <button class="btn" onclick="location.href='historicopedidos.php'">
                     <i class="fas fa-history"></i> Histórico
                 </button>
-                <button class="btn logout" onclick="location.href='../Geral/logout.php'">
+                <button class="btn" onclick="location.href='clientes.php'">
+                    <i class="fas fa-users"></i> Clientes
+                </button>
+                <button class="btn logout" onclick="location.href='logout.php'">
                     <i class="fas fa-sign-out-alt"></i> Sair
                 </button>
             </div>
         </div>
     </header>
 
-    <div class="container">
-        <button class="btn add" onclick="location.href='adicionarcliente.php'">
-            <i class="fas fa-plus"></i> Adicionar Cliente
-        </button>
+<h1>Clientes</h1>
 
-        <h2>Clientes Registrados</h2>
+<?php if (isset($_GET['sucesso'])): ?>
+    <div class="success">Cliente atualizado com sucesso!</div>
+<?php endif; ?>
 
-        <?php if (!empty($clientes)): ?>
-            <table class="clientes-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nome</th>
-                        <th>Telefone</th>
-                        <th>Endereço</th>
-                        <th>Data de Cadastro</th>
-                        <th class="actions-cell">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($clientes as $cliente): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($cliente['id']) ?></td>
-                            <td><?= htmlspecialchars($cliente['nome']) ?></td>
-                            <td><?= htmlspecialchars($cliente['telefone']) ?></td>
-                            <td><?= htmlspecialchars($cliente['endereco']) ?></td>
-                            <td><?= htmlspecialchars($cliente['data_cadastro']) ?></td>
-                            <td class="actions-cell">
-                                <div style="position: relative;">
-                                    <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <div class="card-dropdown">
-                                        <button class="edit" onclick="editarCliente(<?= $cliente['id'] ?>)">
-                                            <i class="fas fa-edit"></i> Editar
-                                        </button>
-                                        <button class="delete" onclick="confirmarExclusao(<?= $cliente['id'] ?>)">
-                                            <i class="fas fa-trash"></i> Excluir
-                                        </button>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+<?php if (isset($_GET['excluido'])): ?>
+    <div class="deleted">Cliente excluído com sucesso!</div>
+<?php endif; ?>
+
+<table>
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+            <th>Endereço</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+    <?php while ($cliente = $clientes->fetch_assoc()): ?>
+        <?php if (isset($_GET['editar']) && $_GET['editar'] == $cliente['id']): ?>
+            <form method="POST">
+                <input type="hidden" name="editar_id" value="<?= $cliente['id'] ?>">
+                <tr>
+                    <td><input type="text" name="editar_nome" value="<?= htmlspecialchars($cliente['nome']) ?>" required></td>
+                    <td><input type="text" name="editar_telefone" value="<?= htmlspecialchars($cliente['telefone']) ?>"></td>
+                    <td><textarea name="editar_endereco"><?= htmlspecialchars($cliente['endereco']) ?></textarea></td>
+                    <td><button type="submit">Salvar</button></td>
+                </tr>
+            </form>
         <?php else: ?>
-            <div class="empty-message">
-                <i class="fas fa-users" style="font-size: 48px; margin-bottom: 15px;"></i>
-                <p>Nenhum cliente cadastrado ainda.</p>
-            </div>
+            <tr>
+                <td><?= htmlspecialchars($cliente['nome']) ?></td>
+                <td><?= htmlspecialchars($cliente['telefone']) ?></td>
+                <td><?= htmlspecialchars($cliente['endereco']) ?></td>
+                <td>
+                    <a href="?editar=<?= $cliente['id'] ?>" class="btn">Editar</a>
+                    <a href="?excluir=<?= $cliente['id'] ?>" class="btn delete" onclick="return confirm('Tem certeza que deseja excluir este cliente?');">Excluir</a>
+                </td>
+            </tr>
         <?php endif; ?>
-    </div>
+    <?php endwhile; ?>
+    </tbody>
+</table>
 
-    <div class="notification" id="notification"></div>
-
-    <script>
-        // Função para mostrar/ocultar o dropdown de ações
-        function toggleDropdown(event, button) {
-            event.stopPropagation();
-            const dropdown = button.nextElementSibling;
-            const allDropdowns = document.querySelectorAll('.card-dropdown');
-            
-            allDropdowns.forEach(dd => {
-                if (dd !== dropdown) dd.classList.remove('show');
-            });
-            
-            dropdown.classList.toggle('show');
-        }
-
-        // Fechar dropdowns ao clicar fora
-        document.addEventListener('click', function() {
-            document.querySelectorAll('.card-dropdown').forEach(dd => {
-                dd.classList.remove('show');
-            });
-        });
-
-        // Função para editar cliente
-        function editarCliente(clienteId) {
-            showNotification('Abrindo cliente #' + clienteId + ' para edição...', 'success');
-            window.location.href = 'adicionarcliente.php?editar=' + clienteId;
-        }
-
-        // Função para confirmar exclusão
-        function confirmarExclusao(clienteId) {
-            if (confirm(`Tem certeza que deseja excluir este cliente?`)) {
-                fetch('funcoes.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        acao: 'excluir_cliente',
-                        cliente_id: clienteId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    showNotification(data.message, data.success ? 'success' : 'error');
-                    if (data.success) {
-                        setTimeout(() => location.reload(), 1500);
-                    }
-                });
-            }
-        }
-
-        // Função para mostrar notificação
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.className = 'notification ' + type;
-            notification.style.display = 'block';
-            
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 3000);
-        }
-    </script>
 </body>
 </html>
