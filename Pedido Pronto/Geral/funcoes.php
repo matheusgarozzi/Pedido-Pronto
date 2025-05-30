@@ -134,6 +134,12 @@ function cadastrarPedido($cliente_id, $itens = []) {
                             $item['quantidade'], $preco);
             $stmt->execute();
             $stmt->close();
+
+            // Subtrai do estoque
+            $stmt_estoque = $conn->prepare("UPDATE produtos SET estoque = estoque - ? WHERE id = ?");
+            $stmt_estoque->bind_param('ii', $item['quantidade'], $item['produto_id']);
+            $stmt_estoque->execute();
+            $stmt_estoque->close();
         }
         
         $conn->commit();
@@ -145,6 +151,7 @@ function cadastrarPedido($cliente_id, $itens = []) {
         $conn->close();
     }
 }
+
 
 function buscarPedidos() {
     $conn = conectar();
@@ -219,7 +226,7 @@ function buscarProdutos() {
 
 function buscarProdutosAtivos() {
     $conn = conectar();
-    $sql = "SELECT id, nome, descricao, preco, imagem FROM produtos WHERE ativo = 1";
+    $sql = "SELECT id, nome, descricao, preco, imagem, estoque FROM produtos WHERE ativo = 1";
     $result = $conn->query($sql);
     
     $produtos = [];
@@ -233,6 +240,7 @@ function buscarProdutosAtivos() {
     $conn->close();
     return $produtos;
 }
+
 
 function atualizarStatus($pedido_id, $status) {
     $conn = conectar();
@@ -303,4 +311,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 }
+function adicionarEstoque($produto_id, $quantidade) {
+    $conn = conectar();
+    $stmt = $conn->prepare("UPDATE produtos SET estoque = estoque + ? WHERE id = ?");
+    if(!$stmt) {
+        error_log("Erro no prepare: " . $conn->error);
+        $conn->close();
+        return false;
+    }
+    $stmt->bind_param("ii", $quantidade, $produto_id);
+    $result = $stmt->execute();
+    if(!$result) {
+        error_log("Erro na execução: " . $stmt->error);
+    }
+    $stmt->close();
+    $conn->close();
+    return $result;
+}
+
 ?>
