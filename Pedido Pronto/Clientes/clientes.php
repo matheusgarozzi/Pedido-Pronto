@@ -83,7 +83,7 @@ $clientes = $conn->query("SELECT * FROM Clientes");
 <h1>Clientes</h1>
 
 <div class="container">
-    <button class="btn add-client" onclick="location.href='adicionar_cliente.php'">
+    <button class="btn add-client" onclick="location.href='adicionarcliente.php'">
         <i class="fas fa-plus"></i> Adicionar Cliente
     </button>
 </div>
