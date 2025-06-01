@@ -25,79 +25,182 @@ $logsAcoes = FuncoesGerente::buscarLogsAcoes($filters);
 <head>
     <meta charset="UTF-8">
     <title>PedidoPronto - Relatório de Ações da Equipe</title>
-    <link rel="stylesheet" href="stylegerente.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Estilos gerais para relatórios (podem ser movidos para stylegerente.css) */
-        .report-section {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --gray: #95a5a6;
+            --white: #ffffff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--dark), #1a2530);
+            color: var(--white);
+            padding: 15px 20px;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 100%;
+            margin: 0 auto;
+            flex-wrap: wrap;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0;
+            font-weight: 600;
+            color: var(--white);
+        }
+
+        .header-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            text-decoration: none;
+            color: var(--white);
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .container {
             padding: 20px;
+            max-width: 100%;
+        }
+
+        .report-section {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
             margin-top: 30px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
         }
 
-        .report-section h3 {
-            border-bottom: 1px solid #e9ecef;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-
-        .report-section table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        .report-section th,
-        .report-section td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-            vertical-align: top; /* Alinha o conteúdo ao topo */
-        }
-
-        .report-section th {
-            background-color: #e9ecef;
+        .report-section h2 {
+            color: #2c3e50;
+            font-weight: 700;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
         }
 
         .filter-form {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            align-items: end;
         }
 
         .filter-form .form-group {
             margin-bottom: 0;
         }
 
+        .filter-form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .filter-form input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background-color: #f8f9fa;
+        }
+
         .filter-form button {
-            grid-column: span var(--filter-button-span, 1);
-            padding: 10px 15px;
-            background-color: #4361ee;
+            padding: 14px;
+            background: linear-gradient(135deg, #3498db, #2ecc71);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
+
         .filter-form button:hover {
-            background-color: #3f37c9;
+            background-color: #2980b9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #e9ecef;
         }
 
         @media (max-width: 768px) {
             .filter-form {
                 grid-template-columns: 1fr;
-            }
-            .filter-form button {
-                grid-column: auto;
             }
         }
     </style>
@@ -116,7 +219,7 @@ $logsAcoes = FuncoesGerente::buscarLogsAcoes($filters);
                 <button class="btn" onclick="location.href='relatorio_produtos_vendidos.php'">
                     <i class="fas fa-chart-pie"></i> Relatório de Produtos
                 </button>
-                <button class="btn logout" onclick="location.href='../Geral/logout.php'">
+                <button class="btn" onclick="location.href='../Geral/logout.php'">
                     <i class="fas fa-sign-out-alt"></i> Sair
                 </button>
             </div>

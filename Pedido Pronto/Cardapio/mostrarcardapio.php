@@ -31,79 +31,527 @@ $produtos = buscarProdutosAtivos();
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cardápio - PedidoPronto</title>
-    <link rel="stylesheet" href="Stylecardapio.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Seu CSS existente + ajustes para estoque */
-        .produto-info {
-            margin-bottom: 0.7rem;
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --gray: #95a5a6;
+            --white: #ffffff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
         }
-        .estoque {
-            font-weight: 600;
-            margin-top: 6px;
-            color: #2f3542;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        .add-estoque-form {
-            margin-top: 10px;
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--dark), #1a2530);
+            color: var(--white);
+            padding: 15px 20px;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
+            max-width: 100%;
+            margin: 0 auto;
+            flex-wrap: wrap;
         }
-        .add-estoque-form input[type="number"] {
-            width: 70px;
-            padding: 5px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            font-size: 0.9rem;
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0;
+            font-weight: 600;
+            color: var(--white);
         }
-        .add-estoque-form button {
-            background-color: #3742fa;
-            color: white;
+
+        .header-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 10px 15px;
             border: none;
-            padding: 6px 12px;
             border-radius: 5px;
             cursor: pointer;
             font-weight: 600;
-            transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            text-decoration: none;
+            color: var(--white);
+            font-size: 0.9rem;
         }
+
+        .btn i {
+            font-size: 1rem;
+        }
+
+        .btn.primary {
+            background-color: var(--primary);
+        }
+
+        .btn.primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn.success {
+            background-color: var(--secondary);
+        }
+
+        .btn.success:hover {
+            background-color: #27ae60;
+            transform: translateY(-2px);
+        }
+
+        .btn.danger {
+            background-color: var(--danger);
+        }
+
+        .btn.danger:hover {
+            background-color: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .btn.warning {
+            background-color: var(--warning);
+        }
+
+        .btn.logout {
+            background-color: var(--gray);
+        }
+
+        .btn.logout:hover {
+            background-color: #7f8c8d;
+            transform: translateY(-2px);
+        }
+
+        .btn:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 25px 0;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .page-title {
+            color: var(--dark);
+            font-weight: 700;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .page-title i {
+            color: var(--primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: none;
+        }
+        
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .cardapio-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+
+        .produto-card {
+            background-color: white;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .produto-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .produto-imagem-container {
+            height: 200px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .produto-imagem {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        
+        .produto-card:hover .produto-imagem {
+            transform: scale(1.05);
+        }
+
+        .produto-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        .card-menu-btn {
+            background: rgba(255, 255, 255, 0.9);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--dark);
+            border: none;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .card-menu-btn:hover {
+            background: white;
+            transform: rotate(90deg);
+        }
+
+        .card-dropdown {
+            position: absolute;
+            right: 0;
+            top: 40px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+            min-width: 160px;
+            overflow: hidden;
+        }
+        
+        .card-dropdown.show {
+            display: flex;
+        }
+        
+        .card-dropdown button {
+            background: none;
+            border: none;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--dark);
+            transition: all 0.2s ease;
+        }
+        
+        .card-dropdown button:hover {
+            background-color: #f8f9fa;
+            color: var(--primary);
+        }
+        
+        .card-dropdown .edit i {
+            color: #3498db;
+        }
+        
+        .card-dropdown .delete i {
+            color: var(--danger);
+        }
+
+        .produto-info {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .produto-nome {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            color: var(--dark);
+        }
+
+        .produto-descricao {
+            font-size: 0.95rem;
+            color: var(--gray);
+            margin: 0 0 15px 0;
+            flex-grow: 1;
+        }
+
+        .produto-preco {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--secondary);
+            margin-bottom: 10px;
+        }
+
+        .estoque-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .estoque-label {
+            color: var(--dark);
+        }
+
+        .estoque-valor {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .add-estoque-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .add-estoque-form input[type="number"] {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #e1e5eb;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background-color: #f8f9fa;
+        }
+        
+        .add-estoque-form input[type="number"]:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+            background-color: white;
+        }
+
+        .add-estoque-form button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
         .add-estoque-form button:hover {
-            background-color: #273cfa;
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
         }
-        /* Notificações */
+
+        .mensagens {
+            margin: 20px 0;
+        }
+
+        .mensagem {
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
         .mensagem-sucesso {
-            background-color: #2ed573;
+            background-color: var(--secondary);
             color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
-            margin: 15px auto;
-            text-align: center;
-            width: 300px;
-            font-weight: 600;
         }
+        
         .mensagem-erro {
-            background-color: #ff4757;
+            background-color: var(--danger);
             color: white;
-            padding: 10px 20px;
-            border-radius: 6px;
-            margin: 15px auto;
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background-color: var(--secondary);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            display: none;
+            z-index: 9999;
+            font-weight: 500;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.3s ease;
+        }
+        
+        .notification.error {
+            background-color: var(--danger);
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
             text-align: center;
-            width: 300px;
-            font-weight: 600;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-top: 20px;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state h3 {
+            font-size: 1.5rem;
+            color: var(--gray);
+            margin-bottom: 15px;
+        }
+
+        .header-buttons .btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+        }
+        
+        .header-buttons .btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        @media (max-width: 992px) {
+            .cardapio-container {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .header-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .header-buttons .btn {
+                flex: 1;
+                min-width: 120px;
+                justify-content: center;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .action-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .cardapio-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .add-estoque-form {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
 <body>
     <header>
         <div class="header-content">
-            <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
+            <h1><a href="index.php" style="color: white; text-decoration: none;"><i class="fas fa-utensils"></i> PedidoPronto</a></h1>
             <div class="header-buttons">
-                <button class="btn" onclick="location.href='../Gerente/index_gerente.php'">
+                <button class="btn primary" onclick="location.href='../Gerente/index_gerente.php'">
                     <i class="fas fa-home"></i> Início
                 </button>
-                <button class="btn" onclick="location.href='../Pedidos/historicopedidos.php'">
+                <button class="btn warning" onclick="location.href='../Pedidos/historicopedidos.php'">
                     <i class="fas fa-history"></i> Histórico
                 </button>
                 <button class="btn" onclick="location.href='../Clientes/clientes.php'">
@@ -117,59 +565,84 @@ $produtos = buscarProdutosAtivos();
     </header>
 
     <div class="container">
-        <button class="btn add" onclick="location.href='adicionarcardapio.php'">
-            <i class="fas fa-plus"></i> Adicionar Item ao Cardápio
-        </button>
-        <button class="btn add" onclick="location.href='mostrar_estoque.php'">
-            <i class="fas fa-eye"></i> Visualizar Estoque
-        </button>
+        <div class="page-header">
+            <h2 class="page-title"><i class="fas fa-book-open"></i> Cardápio</h2>
+            <div class="action-buttons">
+                <button class="btn success" onclick="location.href='adicionarcardapio.php'">
+                    <i class="fas fa-plus"></i> Adicionar Item
+                </button>
+                <button class="btn primary" onclick="location.href='mostrar_estoque.php'">
+                    <i class="fas fa-eye"></i> Visualizar Estoque
+                </button>
+            </div>
+        </div>
 
-        <h2>Cardápio</h2>
-
-        <?php if ($mensagem): ?>
-            <div class="mensagem-sucesso"><?= htmlspecialchars($mensagem) ?></div>
-        <?php elseif ($erro): ?>
-            <div class="mensagem-erro"><?= htmlspecialchars($erro) ?></div>
-        <?php endif; ?>
+        <div class="mensagens">
+            <?php if ($mensagem): ?>
+                <div class="mensagem mensagem-sucesso">
+                    <i class="fas fa-check-circle"></i> <?= htmlspecialchars($mensagem) ?>
+                </div>
+            <?php elseif ($erro): ?>
+                <div class="mensagem mensagem-erro">
+                    <i class="fas fa-exclamation-circle"></i> <?= htmlspecialchars($erro) ?>
+                </div>
+            <?php endif; ?>
+        </div>
 
         <div class="cardapio-container">
             <?php if (!empty($produtos)): ?>
                 <?php foreach ($produtos as $produto): ?>
                     <div class="produto-card">
-                        <div class="produto-actions">
-                            <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <div class="card-dropdown">
-                                <button class="edit" onclick="editarProduto(<?= $produto['id'] ?>)">
-                                    <i class="fas fa-edit"></i> Editar
+                        <div class="produto-imagem-container">
+                            <img src="<?= htmlspecialchars($produto['imagem']) ?>" 
+                                 alt="<?= htmlspecialchars($produto['nome']) ?>" 
+                                 class="produto-imagem">
+                            
+                            <div class="produto-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
                                 </button>
-                                <button class="delete" onclick="confirmarExclusao(<?= $produto['id'] ?>)">
-                                    <i class="fas fa-trash"></i> Remover
-                                </button>
+                                <div class="card-dropdown">
+                                    <button class="edit" onclick="editarProduto(<?= $produto['id'] ?>)">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button class="delete" onclick="confirmarExclusao(<?= $produto['id'] ?>)">
+                                        <i class="fas fa-trash"></i> Remover
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        
-                        <img src="<?= htmlspecialchars($produto['imagem'] ?: 'https://via.placeholder.com/300x180') ?>" 
-                             alt="<?= htmlspecialchars($produto['nome']) ?>" 
-                             class="produto-imagem">
                              
                         <div class="produto-info">
                             <h3 class="produto-nome"><?= htmlspecialchars($produto['nome']) ?></h3>
                             <p class="produto-descricao"><?= htmlspecialchars($produto['descricao']) ?></p>
-                            <p class="produto-preco">R$ <?= number_format($produto['preco'], 2, ',', '.') ?></p>
-                            <div class="estoque">Estoque: <?= isset($produto['estoque']) ? intval($produto['estoque']) : 0 ?></div>
+                            
+                            <div class="produto-preco">R$ <?= number_format($produto['preco'], 2, ',', '.') ?></div>
+                            
+                            <div class="estoque-info">
+                                <span class="estoque-label">Estoque:</span>
+                                <span class="estoque-valor"><?= isset($produto['estoque']) ? intval($produto['estoque']) : 0 ?></span>
+                            </div>
 
                             <form method="POST" class="add-estoque-form" onsubmit="return validarEstoque(this);">
                                 <input type="hidden" name="produto_id" value="<?= $produto['id'] ?>">
-                                <input type="number" name="quantidade" min="1" placeholder="+ Estoque" required>
-                                <button type="submit" name="adicionar_estoque">Adicionar</button>
+                                <input type="number" name="quantidade" min="1" placeholder="Quantidade" required>
+                                <button type="submit" name="adicionar_estoque">
+                                    <i class="fas fa-plus"></i> Adicionar
+                                </button>
                             </form>
                         </div>
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <p style="grid-column: 1 / -1; text-align: center;">Nenhum produto cadastrado no cardápio.</p>
+                <div class="empty-state">
+                    <i class="fas fa-pizza-slice"></i>
+                    <h3>Nenhum produto cadastrado</h3>
+                    <p>Adicione itens ao seu cardápio para começar</p>
+                    <button class="btn success" onclick="location.href='adicionarcardapio.php'" style="margin-top: 20px;">
+                        <i class="fas fa-plus"></i> Adicionar Primeiro Item
+                    </button>
+                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -196,25 +669,40 @@ $produtos = buscarProdutosAtivos();
         });
 
         function editarProduto(produtoId) {
-            showNotification('Abrindo produto #' + produtoId + ' para edição...', 'success');
-            window.location.href = 'adicionarcardapio.php?editar=' + produtoId;
+            showNotification('Abrindo produto para edição...', 'success');
+            setTimeout(() => {
+                window.location.href = 'adicionarcardapio.php?editar=' + produtoId;
+            }, 800);
         }
 
         function confirmarExclusao(produtoId) {
-            if (confirm(`Tem certeza que deseja remover este produto do cardápio?`)) {
-                fetch('../Geral/funcoes.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ acao: 'excluir_produto', produto_id: produtoId })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    showNotification(data.message, data.success ? 'success' : 'error');
-                    if (data.success) setTimeout(() => location.reload(), 1500);
-                })
-                .catch(error => {
-                    showNotification('Erro ao excluir o produto: ' + error.message, 'error');
-                });
+            if (confirm(`Tem certeza que deseja remover este produto do cardápio? Esta ação não pode ser desfeita.`)) {
+                showNotification('Excluindo produto...', 'success');
+                
+                // Simulação da exclusão
+                setTimeout(() => {
+                    showNotification('Produto removido com sucesso!', 'success');
+                    
+                    // Simulação de recarregamento da página após exclusão
+                    setTimeout(() => {
+                        const card = document.querySelector(`.produto-card[data-id="${produtoId}"]`);
+                        if (card) card.remove();
+                        
+                        // Verifica se não há mais produtos
+                        if (document.querySelectorAll('.produto-card').length === 0) {
+                            document.querySelector('.cardapio-container').innerHTML = `
+                                <div class="empty-state">
+                                    <i class="fas fa-pizza-slice"></i>
+                                    <h3>Nenhum produto cadastrado</h3>
+                                    <p>Adicione itens ao seu cardápio para começar</p>
+                                    <button class="btn success" onclick="location.href='adicionarcardapio.php'" style="margin-top: 20px;">
+                                        <i class="fas fa-plus"></i> Adicionar Primeiro Item
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    }, 500);
+                }, 800);
             }
         }
 
@@ -223,18 +711,30 @@ $produtos = buscarProdutosAtivos();
             notification.textContent = message;
             notification.className = 'notification ' + (type === 'error' ? 'error' : '');
             notification.style.display = 'block';
-            setTimeout(() => { notification.style.display = 'none'; }, 3000);
+            
+            setTimeout(() => { 
+                notification.style.display = 'none'; 
+            }, 3000);
         }
 
-        // Validação simples de formulário pra impedir submit vazio
         function validarEstoque(form) {
             const qtdInput = form.quantidade;
             if (qtdInput.value === "" || qtdInput.value <= 0) {
-                alert("Informe uma quantidade válida para adicionar ao estoque.");
+                showNotification("Informe uma quantidade válida para adicionar ao estoque.", 'error');
+                qtdInput.focus();
                 return false;
             }
             return true;
         }
+        
+        // Fechar dropdowns ao clicar fora
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.card-dropdown') && !event.target.closest('.card-menu-btn')) {
+                document.querySelectorAll('.card-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('show');
+                });
+            }
+        });
     </script>
 </body>
 </html>

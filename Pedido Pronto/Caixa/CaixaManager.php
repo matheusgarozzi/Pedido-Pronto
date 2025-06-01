@@ -2,7 +2,7 @@
 
 // CaixaManager.php - COM FORMULARIO DE PAGAMENTO E RELATÓRIO DE VENDAS POR FORMA DE PAGAMENTO
 
-require_once 'funcoesGerente.php'; // Inclui FuncoesGerente para usar registrarAcao
+require_once '../Gerente/funcoesGerente.php'; // Inclui FuncoesGerente para usar registrarAcao
 
 class CaixaManager {
     private $mysqli; // Agora é um objeto mysqli

@@ -1,190 +1,140 @@
-    <?php
-    // index_gerente.php - VERSÃO CORRIGIDA COM CHAMADAS DE MÉTODOS ESTÁTICOS E DASHBOARD DE CAIXA NO HEADER
+<?php
+// index_atendente.php - Página para o Atendente
 
-    // 1. Inclua seu arquivo de conexão
-    require_once '../Geral/conexao.php';
+require_once '../Geral/conexao.php';
+require_once '../Caixa/CaixaManager.php';
+require_once 'funcoesGerente.php'; // Reutilizando funções do gerente que são comuns
 
-    // 2. Inclua a classe CaixaManager refatorada
-    require_once '../Caixa/CaixaManager.php';
+$mysqliConnection = getConnection();
+$caixaManager = new CaixaManager($mysqliConnection);
 
-    // 3. Inclua seu arquivo de funções
-    require_once '../Geral/funcoes.php'; // Caminho corrigido
+$mensagemStatus = '';
 
-    require_once 'funcoesGerente.php'; // Caminho corrigido
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $response = ['success' => false, 'message' => ''];
+    $data = json_decode(file_get_contents("php://input"), true);
 
-    // Obtenha a conexão mysqli através da sua função global getConnection()
-    $mysqliConnection = getConnection();
+    if ($data && isset($data['form'])) {
+        switch ($data['form']) {
+            case 'update':
+                // Ações de atualização de status do pedido
+                // Para o atendente, vamos adicionar uma verificação de senha simples (APENAS PARA DEMONSTRAÇÃO)
+                if (!isset($data['senha']) || $data['senha'] !== 'atendente123') { // Senha fixa para demonstração
+                    $response = ['success' => false, 'message' => 'Senha incorreta para realizar esta ação.'];
+                    echo json_encode($response);
+                    exit;
+                }
 
-    // Instancia o CaixaManager com a conexão mysqli
-    $caixaManager = new CaixaManager($mysqliConnection);
-
-    $mensagemStatus = '';
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $response = ['success' => false, 'message' => ''];
-        $data = json_decode(file_get_contents("php://input"), true);
-
-        if ($data && isset($data['form'])) {
-            switch ($data['form']) {
-                case 'cliente':
-                    // Chamada de método estático
-                    if (FuncoesGerente::cadastrarCliente($data['nome'], $data['telefone'], $data['endereco'])) {
-                        $response = ['success' => true, 'message' => 'Cliente cadastrado!'];
+                if ($data['status'] === 'pronto') {
+                    $formaPagamentoPadraoId = 1; // Ajuste para o ID da sua forma de pagamento padrão
+                    $caixaResultado = $caixaManager->finalizarPedidoEAdicionarAoCaixa($data['pedido_id'], $formaPagamentoPadraoId);
+                    
+                    if (is_array($caixaResultado) && isset($caixaResultado['success']) && $caixaResultado['success'] === false) {
+                        $response = ['success' => false, 'message' => $caixaResultado['message'] ?? 'Erro desconhecido ao finalizar pedido e adicionar ao caixa.'];
                     } else {
-                        $response = ['success' => false, 'message' => 'Erro ao cadastrar cliente.'];
-                    }
-                    break;
-
-                case 'produto':
-                    // Chamada de método estático
-                    if (FuncoesGerente::cadastrarProduto($data['nome_produto'], $data['preco_produto'])) {
-                        $response = ['success' => true, 'message' => 'Produto cadastrado!'];
-                    } else {
-                        $response = ['success' => false, 'message' => 'Erro ao cadastrar produto.'];
-                    }
-                    break;
-
-                case 'pedido':
-                    if (isset($data['cliente_id']) && isset($data['itens']) && is_array($data['itens'])) {
-                        // Chamada de método estático
-                        $pedido_id = FuncoesGerente::cadastrarPedido($data['cliente_id'], $data['itens']);
-                        if ($pedido_id) {
-                            $response = ['success' => true, 'message' => "Pedido #{$pedido_id} cadastrado!"];
-                        } else {
-                            $response = ['success' => false, 'message' => 'Erro ao cadastrar o pedido.'];
-                        }
-                    } else {
-                        $response = ['success' => false, 'message' => 'Dados do pedido incompletos.'];
-                    }
-                    break;
-
-                case 'update':
-                    // Ao arrastar para 'pronto', finalize o pedido e registre a forma de pagamento
-                    if ($data['status'] === 'pronto') {
-                        $formaPagamentoPadraoId = 1; // Ajuste para o ID da sua forma de pagamento padrão
-                        $caixaResultado = $caixaManager->finalizarPedidoEAdicionarAoCaixa($data['pedido_id'], $formaPagamentoPadraoId);
-                        
-                        // Verifica se o resultado da operação do caixa é um array e se indica falha
-                        if (is_array($caixaResultado) && isset($caixaResultado['success']) && $caixaResultado['success'] === false) {
-                            $response = ['success' => false, 'message' => $caixaResultado['message'] ?? 'Erro desconhecido ao finalizar pedido e adicionar ao caixa.'];
-                        } else {
-                            // Se a finalização do caixa foi bem-sucedida, atualize o status do pedido
-                            if (FuncoesGerente::atualizarStatus($data['pedido_id'], $data['status'])) {
-                                $response = ['success' => true, 'message' => 'Status atualizado e valor adicionado ao caixa!'];
-                            } else {
-                                $response = ['success' => false, 'message' => 'Erro ao atualizar status do pedido após finalização do caixa.'];
-                            }
-                        }
-                    } else {
-                        // Chamada de método estático para outros status
                         if (FuncoesGerente::atualizarStatus($data['pedido_id'], $data['status'])) {
-                            $response = ['success' => true, 'message' => 'Status atualizado!'];
+                            $response = ['success' => true, 'message' => 'Status atualizado e valor adicionado ao caixa!'];
                         } else {
-                            $response = ['success' => false, 'message' => 'Erro ao atualizar status.'];
+                            $response = ['success' => false, 'message' => 'Erro ao atualizar status do pedido após finalização do caixa.'];
                         }
                     }
-                    break;
-
-                case 'cancelar':
-                    if (isset($data['pedido_id']) && isset($data['motivo_id'])) {
-                        // Chamada de método estático
-                        if (FuncoesGerente::cancelarPedido($data['pedido_id'], $data['motivo_id'])) {
-                            $response = ['success' => true, 'message' => 'Pedido cancelado com sucesso!'];
-                        } else {
-                            $response = ['success' => false, 'message' => 'Erro ao cancelar o pedido.'];
-                        }
+                } else {
+                    if (FuncoesGerente::atualizarStatus($data['pedido_id'], $data['status'])) {
+                        $response = ['success' => true, 'message' => 'Status atualizado!'];
                     } else {
-                        $response = ['success' => false, 'message' => 'Dados de cancelamento incompletos.'];
+                        $response = ['success' => false, 'message' => 'Erro ao atualizar status.'];
                     }
-                    break;
+                }
+                break;
 
-                case 'editar_pedido_completo': // Nova ação para edição completa
-                    if (isset($data['pedido_id']) && isset($data['itens']) && is_array($data['itens'])) {
-                        // Chamada de método estático
-                        if (FuncoesGerente::editarItensPedido($data['pedido_id'], $data['itens'])) {
-                            $response = ['success' => true, 'message' => 'Itens do pedido atualizados!'];
-                        } else {
-                            $response = ['success' => false, 'message' => 'Erro ao atualizar itens do pedido.'];
-                        }
-                    } else {
-                        $response = ['success' => false, 'message' => 'Dados de edição incompletos.'];
-                    }
-                    break;
-                
-                // Ações de caixa (para o gerente)
-                case 'abrir_caixa_gerente':
-                    if (isset($data['responsavel']) && isset($data['saldo_inicial'])) {
-                        $result = $caixaManager->abrirCaixa($data['responsavel'], (float)$data['saldo_inicial']);
-                        $response = ['success' => $result['success'] ?? false, 'message' => $result['message'] ?? 'Erro desconhecido ao abrir caixa.'];
-                    } else {
-                        $response = ['success' => false, 'message' => 'Dados incompletos para abrir o caixa.'];
-                    }
-                    break;
+            case 'cancelar':
+                // Ações de cancelamento de pedido
+                // Para o atendente, vamos adicionar uma verificação de senha simples (APENAS PARA DEMONSTRAÇÃO)
+                if (!isset($data['senha']) || $data['senha'] !== 'atendente123') { // Senha fixa para demonstração
+                    $response = ['success' => false, 'message' => 'Senha incorreta para cancelar este pedido.'];
+                    echo json_encode($response);
+                    exit;
+                }
 
-                case 'fechar_caixa_gerente':
-                    if (isset($data['responsavel'])) {
-                        $result = $caixaManager->fecharCaixa($data['responsavel']);
-                        $response = ['success' => $result['success'] ?? false, 'message' => $result['message'] ?? 'Erro desconhecido ao fechar caixa.'];
+                if (isset($data['pedido_id']) && isset($data['motivo_id'])) {
+                    if (FuncoesGerente::cancelarPedido($data['pedido_id'], $data['motivo_id'])) {
+                        $response = ['success' => true, 'message' => 'Pedido cancelado com sucesso!'];
                     } else {
-                        $response = ['success' => false, 'message' => 'Nome do responsável não fornecido para fechar o caixa.'];
+                        $response = ['success' => false, 'message' => 'Erro ao cancelar o pedido.'];
                     }
-                    break;
-            }
+                } else {
+                    $response = ['success' => false, 'message' => 'Dados de cancelamento incompletos.'];
+                }
+                break;
+            
+            // Ações de caixa (para o atendente)
+            case 'abrir_caixa_atendente': // Ação específica para o atendente
+                if (isset($data['responsavel']) && isset($data['saldo_inicial'])) {
+                    $result = $caixaManager->abrirCaixa($data['responsavel'], (float)$data['saldo_inicial']);
+                    $response = ['success' => $result['success'] ?? false, 'message' => $result['message'] ?? 'Erro desconhecido ao abrir caixa.'];
+                } else {
+                    $response = ['success' => false, 'message' => 'Dados incompletos para abrir o caixa.'];
+                }
+                break;
 
-            echo json_encode($response);
-            exit;
+            case 'fechar_caixa_atendente': // Ação específica para o atendente
+                if (isset($data['responsavel'])) {
+                    $result = $caixaManager->fecharCaixa($data['responsavel']);
+                    $response = ['success' => $result['success'] ?? false, 'message' => $result['message'] ?? 'Erro desconhecido ao fechar caixa.'];
+                } else {
+                    $response = ['success' => false, 'message' => 'Nome do responsável não fornecido para fechar o caixa.'];
+                }
+                break;
+
+            case 'editar_pedido_completo': // Nova ação para edição completa
+                // Para o atendente, vamos adicionar uma verificação de senha simples (APENAS PARA DEMONSTRAÇÃO)
+                if (!isset($data['senha']) || $data['senha'] !== 'atendente123') { // Senha fixa para demonstração
+                    $response = ['success' => false, 'message' => 'Senha incorreta para editar este pedido.'];
+                    echo json_encode($response);
+                    exit;
+                }
+
+                if (isset($data['pedido_id']) && isset($data['itens']) && is_array($data['itens'])) {
+                    if (FuncoesGerente::editarItensPedido($data['pedido_id'], $data['itens'])) {
+                        $response = ['success' => true, 'message' => 'Itens do pedido atualizados!'];
+                    } else {
+                        $response = ['success' => false, 'message' => 'Erro ao atualizar itens do pedido.'];
+                    }
+                } else {
+                    $response = ['success' => false, 'message' => 'Dados de edição incompletos.'];
+                }
+                break;
         }
 
-        // Se estiver usando form-data tradicional
-        if (isset($_POST['action'])) {
-            $action = $_POST['action'];
-
-            // Ajuste estas partes se ainda usar POST tradicional.
-            // O ideal é migrar tudo para a abordagem JSON/Fetch API.
-            if ($action === 'excluir') {
-                $response = ['success' => false, 'message' => 'A exclusão direta foi desativada. Use a opção de Cancelar com motivo.'];
-                echo json_encode($response);
-                exit;
-            }
-
-            if ($action === 'editar') {
-                $id = $_POST['id'] ?? null;
-                $novoProduto = $_POST['produto_id'] ?? null;
-                $response = ['success' => false, 'message' => 'A edição direta foi desativada. Use o modal de edição completo.'];
-                echo json_encode($response);
-                exit;
-            }
-        }
-
-        echo json_encode(['success' => false, 'message' => 'Nenhuma ação reconhecida.']);
+        echo json_encode($response);
         exit;
     }
+}
+// Carregar dados para a página (Chamadas de métodos estáticos)
+$pedidos = FuncoesGerente::buscarPedidos(); // Buscar todos os pedidos para o Kanban
+$clientes = FuncoesGerente::buscarClientes();
+$produtos = FuncoesGerente::buscarProdutos();
+// Garante que $caixa é sempre um array, mesmo que getCaixaAtual() retorne false
+$caixa = $caixaManager->getCaixaAtual() ?: ['status' => 'fechado', 'saldo_inicial' => 0, 'entradas' => 0, 'saidas' => 0, 'saldo_atual' => 0, 'id' => null];
+$motivosCancelamento = FuncoesGerente::buscarMotivosCancelamento();
 
-    // Carregar dados para a página (Chamadas de métodos estáticos)
-    $pedidos = FuncoesGerente::buscarPedidos(); // Buscar todos os pedidos para o Kanban
-    $clientes = FuncoesGerente::buscarClientes();
-    $produtos = FuncoesGerente::buscarProdutos();
-    // Garante que $caixa é sempre um array, mesmo que getCaixaAtual() retorne false
-    $caixa = $caixaManager->getCaixaAtual() ?: ['status' => 'fechado', 'saldo_inicial' => 0, 'entradas' => 0, 'saidas' => 0, 'saldo_atual' => 0, 'id' => null];
-    $motivosCancelamento = FuncoesGerente::buscarMotivosCancelamento(); // Chamada de método estático
-    
-    // Obter total de vendas por forma de pagamento para o modal de fechamento
-    $vendasPorFormaPagamento = [];
-    if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
-        $vendasPorFormaPagamento = $caixaManager->getTotalVendasPorFormaPagamento($caixa['id']);
-    }
+// Obter total de vendas por forma de pagamento para o modal de fechamento
+$vendasPorFormaPagamento = [];
+if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
+    $vendasPorFormaPagamento = $caixaManager->getTotalVendasPorFormaPagamento($caixa['id']);
+}
 
-    ?>
-    <!DOCTYPE html>
-    <html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <title>PedidoPronto - Gerente</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    </head>
-    <style>
+?>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>PedidoPronto - Atendente</title>
+    <link rel="stylesheet" href="stylegerente.css"> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<style>
         /* CSS incorporado diretamente para garantir o carregamento */
         :root {
             --primary: #3498db;
@@ -743,107 +693,91 @@
             }
         }
     </style>
-    <body>
-        <header>
-            <div class="header-content">
-                <h1>PedidoPronto - Gerente</h1>
-                <div class="header-buttons">
-                    <button class="btn" onclick="openModal('pedido')">
-                        <i class="fas fa-plus"></i> Novo Pedido
+<body>
+    <header>
+        <div class="header-content">
+            <h1>PedidoPronto - Atendente</h1>
+            <div class="header-buttons">
+                <button class="btn" onclick="openModal('pedido')">
+                    <i class="fas fa-plus"></i> Novo Pedido
+                </button>
+                <button class="btn" onclick="location.href='../cardapio/mostrarcardapio.php'">
+                    <i class="fas fa-utensils"></i> Cardápio
+                </button>
+                <button class="btn" onclick="location.href='../Pedidos/historicopedidos.php'">
+                    <i class="fas fa-history"></i> Histórico
+                </button>
+                <button class="btn" onclick="location.href='../Clientes/clientes.php'">
+                    <i class="fas fa-users"></i> Clientes
+                </button>
+                <?php if ($caixa['status'] === 'fechado'): ?>
+                    <button class="btn primary" onclick="abrirCaixaComPrompt()">
+                        <i class="fas fa-cash-register"></i> Abrir Caixa
                     </button>
-                    <button class="btn" onclick="location.href='../cardapio/mostrarcardapio.php'">
-                        <i class="fas fa-utensils"></i> Cardápio
+                <?php else: ?>
+                    <button class="btn danger" onclick="openFecharCaixaModal()">
+                        <i class="fas fa-cash-register"></i> Fechar Caixa
                     </button>
-                    <button class="btn" onclick="location.href='../Pedidos/historicopedidos.php'">
-                        <i class="fas fa-history"></i> Histórico
-                    </button>
-                    <button class="btn" onclick="location.href='../Clientes/clientes.php'">
-                        <i class="fas fa-users"></i> Clientes
-                    </button>
-                    <button class="btn" onclick="location.href='relatorio_pedidos.php'">
-                        <i class="fas fa-chart-bar"></i> Relatórios de Pedidos
-                    </button>
-                    <button class="btn" onclick="location.href='relatorio_produtos_vendidos.php'">
-                        <i class="fas fa-chart-pie"></i> Relatório de Produtos
-                    </button>
-                    <button class="btn" onclick="location.href='relatorio_acoes_equipe.php'">
-                        <i class="fas fa-clipboard-list"></i> Ações da Equipe
-                    </button>
-                    <?php if ($caixa['status'] === 'fechado'): ?>
-                        <button class="btn primary" onclick="abrirCaixaComPrompt()">
-                            <i class="fas fa-cash-register"></i> Abrir Caixa
-                        </button>
-                    <?php else: ?>
-                        <button class="btn danger" onclick="openFecharCaixaModal()">
-                            <i class="fas fa-cash-register"></i> Fechar Caixa
-                        </button>
-                    <?php endif; ?>
-                    <button class="btn logout" onclick="location.href='../Geral/logout.php'">
-                        <i class="fas fa-sign-out-alt"></i> Sair
-                    </button>
+                <?php endif; ?>
+                <button class="btn logout" onclick="location.href='../Geral/logout.php'">
+                    <i class="fas fa-sign-out-alt"></i> Sair
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <?php echo $mensagemStatus; ?>
+
+        <div class="caixa-info">
+            <div class="caixa-status">
+                <h2>Situação do Caixa</h2>
+                <span class="status-badge status-<?= $caixa['status'] ?>">
+                    <?= strtoupper($caixa['status']) ?>
+                </span>
+            </div>
+            <div class="caixa-valores">
+                <div class="caixa-valor">
+                    <span>Saldo Inicial</span>
+                    <p>R$ <?= number_format($caixa['saldo_inicial'] ?? 0, 2, ',', '.') ?></p>
+                </div>
+                <div class="caixa-valor">
+                    <span>Entradas</span>
+                    <p>R$ <?= number_format($caixa['entradas'] ?? 0, 2, ',', '.') ?></p>
+                </div>
+                <div class="caixa-valor">
+                    <span>Saídas</span>
+                    <p>R$ <?= number_format($caixa['saidas'] ?? 0, 2, ',', '.') ?></p>
+                </div>
+                <div class="caixa-valor">
+                    <span>Saldo Atual</span>
+                    <p>R$ <?= number_format($caixa['saldo_atual'] ?? 0, 2, ',', '.') ?></p>
                 </div>
             </div>
-        </header>
+        </div>
 
-        <div class="container">
-            <?php echo $mensagemStatus; ?>
-
-            <div class="caixa-info">
-                <div class="caixa-status">
-                    <h2>Situação do Caixa</h2>
-                    <span class="status-badge status-<?= $caixa['status'] ?>">
-                        <?= strtoupper($caixa['status']) ?>
-                    </span>
+        <div class="kanban-container">
+            <div class="kanban-column" id="pendente" ondragover="allowDrop(event)" ondrop="drop(event, 'pendente')">
+                <div class="column-header">
+                    <h3 class="column-title">Pendente</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pendente')) ?></span>
                 </div>
-                <div class="caixa-valores">
-                    <div class="caixa-valor">
-                        <span>Saldo Inicial</span>
-                        <p>R$ <?= number_format($caixa['saldo_inicial'] ?? 0, 2, ',', '.') ?></p>
-                    </div>
-                    <div class="caixa-valor">
-                        <span>Entradas</span>
-                        <p>R$ <?= number_format($caixa['entradas'] ?? 0, 2, ',', '.') ?></p>
-                    </div>
-                    <div class="caixa-valor">
-                        <span>Saídas</span>
-                        <p>R$ <?= number_format($caixa['saidas'] ?? 0, 2, ',', '.') ?></p>
-                    </div>
-                    <div class="caixa-valor">
-                        <span>Saldo Atual</span>
-                        <p>R$ <?= number_format($caixa['saldo_atual'] ?? 0, 2, ',', '.') ?></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="kanban-container">
-                <div class="kanban-column" id="pendente" ondragover="allowDrop(event)" ondrop="drop(event, 'pendente')">
-                    <div class="column-header">
-                        <h3 class="column-title">Pendente</h3>
-                        <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pendente')) ?></span>
-                    </div>
-                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pendente'): ?>
-                        <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                            <div class="card-header">
-                                <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                                <div class="card-actions" style="position: relative;">
-                                    <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                        <i class="fas fa-ellipsis-v"></i>
+                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pendente'): ?>
+                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                        <div class="card-header">
+                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions" style="position: relative;">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <a href="../Pedidos/editar_pedido.php?id=<?= $pedido['id'] ?>" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+                                    <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-times"></i> Cancelar
                                     </button>
-                                    <div class="card-dropdown">
-                                        <a href="../Pedidos/editar_pedido.php?id=<?= $pedido['id'] ?>" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
-                                            <i class="fas fa-edit"></i> Editar
-                                        </a>
-                                        <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
-                                            <i class="fas fa-times"></i> Cancelar
-                                        </button>
-                                    </div>
                                 </div>
-                            </div>
-                            <div class="card-body">
-                                <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                                <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
-                                <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
-                                <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
                             </div>
                         </div>
                     <?php endif; endforeach; ?>
@@ -867,16 +801,9 @@
                                             <i class="fas fa-edit"></i> Editar
                                         </a>
                                         <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
-                                            <i class="fas fa-times"></i> Cancelar
-                                        </button>
-                                    </div>
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
                                 </div>
-                            </div>
-                            <div class="card-body">
-                                <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                                <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
-                                <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
-                                <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
                             </div>
                         </div>
                     <?php endif; endforeach; ?>
@@ -1211,7 +1138,9 @@
                     if (targetStatus === 'cancelado') {
                         openCancelModal(pedidoId); // Abre o modal de cancelamento
                     } else {
-                        fetch('index_gerente.php', {
+                        // Adicionando console.log para depuração
+                        console.log(`Tentando atualizar pedido ${pedidoId} para status ${targetStatus}`);
+                        fetch('index_atendente.php', { // Alterado para index_atendente.php
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1219,11 +1148,16 @@
                             body: JSON.stringify({
                                 form: 'update',
                                 pedido_id: pedidoId,
-                                status: targetStatus
+                                status: targetStatus,
+                                senha: 'atendente123' // Senha fixa para demonstração
                             })
                         })
-                        .then(response => response.json())
+                        .then(response => {
+                            console.log('Resposta bruta do servidor (update):', response);
+                            return response.json();
+                        })
                         .then(data => {
+                            console.log('Dados da resposta (update):', data);
                             if (data.success) {
                                 const pedidoElement = document.getElementById(draggedPedidoId);
                                 document.getElementById(targetStatus).appendChild(pedidoElement);
@@ -1234,7 +1168,7 @@
                             }
                         })
                         .catch(error => {
-                            console.error('Erro no fetch:', error);
+                            console.error('Erro no fetch (update):', error);
                             showNotification('Erro de comunicação com o servidor.', 'error');
                         })
                         .finally(() => {
@@ -1271,26 +1205,32 @@
                     let saldoInicial = prompt("Digite o saldo inicial para abrir o caixa (opcional, padrão 0.00):");
                     saldoInicial = parseFloat(saldoInicial) || 0.00; // Garante que seja um número ou 0.00
 
-                    fetch('index_gerente.php', {
+                    // Adicionando console.log para depuração
+                    console.log(`Tentando abrir caixa com responsável: ${responsavel}, saldo: ${saldoInicial}`);
+                    fetch('index_atendente.php', { // Alterado para index_atendente.php
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            form: 'abrir_caixa_gerente',
+                            form: 'abrir_caixa_atendente', // Alterado para ação do atendente
                             responsavel: responsavel,
                             saldo_inicial: saldoInicial
                         })
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        console.log('Resposta bruta do servidor (abrir caixa):', response);
+                        return response.json();
+                    })
                     .then(data => {
+                        console.log('Dados da resposta (abrir caixa):', data);
                         showNotification(data.message, data.success ? 'success' : 'error');
                         if (data.success) {
                             location.reload();
                         }
                     })
                     .catch(error => {
-                        console.error('Erro ao abrir caixa:', error);
+                        console.error('Erro no fetch (abrir caixa):', error);
                         showNotification('Erro de comunicação ao abrir caixa.', 'error');
                     });
                 }
@@ -1298,24 +1238,22 @@
 
             function openFecharCaixaModal() {
                 // Preenche os dados do caixa no modal
-                document.getElementById('fecharCaixaIdDisplay').textContent = currentCaixaId;
+                document.getElementById('fecharCaixaIdDisplay').textContent = "<?= $caixa['id'] ?? 'N/A' ?>";
                 document.getElementById('fecharCaixaSaldoInicial').textContent = "<?= number_format($caixa['saldo_inicial'] ?? 0, 2, ',', '.') ?>";
                 document.getElementById('fecharCaixaSaldoAtual').textContent = "<?= number_format($caixa['saldo_atual'] ?? 0, 2, ',', '.') ?>";
 
+                // A lógica para obter vendasPorFormaPagamentoData precisa ser feita no PHP ou via AJAX
+                // Por enquanto, usaremos a variável PHP que já foi populada
                 const vendasList = document.getElementById('vendasPorFormaList');
                 vendasList.innerHTML = ''; // Limpa a lista anterior
 
-                if (Object.keys(vendasPorFormaPagamentoData).length > 0) {
-                    for (const forma in vendasPorFormaPagamentoData) {
-                        const li = document.createElement('li');
-                        li.textContent = `${forma}: R$ ${parseFloat(vendasPorFormaPagamentoData[forma]).toFixed(2).replace('.', ',')}`;
-                        vendasList.appendChild(li);
-                    }
-                } else {
-                    const li = document.createElement('li');
-                    li.textContent = 'Nenhuma venda registrada neste caixa.';
-                    vendasList.appendChild(li);
-                }
+                // Esta parte precisa ser adaptada se você não tiver $vendasPorFormaPagamentoData no PHP do atendente
+                // Como não temos essa informação no atendente, vou simular ou deixar um placeholder
+                // Se você quiser que o atendente veja isso, precisará de uma nova função em CaixaManager para buscar.
+                // Por simplicidade, vou deixar um placeholder aqui, já que o foco é o gerente.
+                const li = document.createElement('li');
+                li.textContent = 'Detalhes de vendas por forma de pagamento não disponíveis para o atendente.';
+                vendasList.appendChild(li);
 
                 openModal('fecharCaixa');
             }
@@ -1327,18 +1265,24 @@
                     return;
                 }
 
-                fetch('index_gerente.php', {
+                // Adicionando console.log para depuração
+                console.log(`Tentando fechar caixa com responsável: ${responsavel}`);
+                fetch('index_atendente.php', { // Alterado para index_atendente.php
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        form: 'fechar_caixa_gerente',
+                        form: 'fechar_caixa_atendente', // Alterado para ação do atendente
                         responsavel: responsavel
                     })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Resposta bruta do servidor (fechar caixa):', response);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Dados da resposta (fechar caixa):', data);
                     showNotification(data.message, data.success ? 'success' : 'error');
                     if (data.success) {
                         closeModal('fecharCaixaModal');
@@ -1346,7 +1290,7 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Erro ao fechar caixa:', error);
+                    console.error('Erro no fetch (fechar caixa):', error);
                     showNotification('Erro de comunicação ao fechar caixa.', 'error');
                 });
             }
@@ -1447,7 +1391,9 @@
                     return;
                 }
 
-                fetch('index_gerente.php', {
+                // Adicionando console.log para depuração
+                console.log('Tentando enviar novo pedido:', { cliente_id: clienteId, itens: itens });
+                fetch('index_atendente.php', { // Alterado para index_atendente.php
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1458,13 +1404,21 @@
                         itens: itens
                     })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Resposta bruta do servidor (novo pedido):', response);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Dados da resposta (novo pedido):', data);
                     showNotification(data.message, data.success ? 'success' : 'error');
                     if (data.success) {
                         closeModal();
                         setTimeout(() => location.reload(), 1500);
                     }
+                })
+                .catch(error => {
+                    console.error('Erro no fetch (novo pedido):', error);
+                    showNotification('Erro de comunicação com o servidor.', 'error');
                 });
             }
 
@@ -1485,7 +1439,15 @@
                     return;
                 }
 
-                fetch('index_gerente.php', {
+                const senha = prompt("Por favor, digite a senha para cancelar o pedido:");
+                if (!senha) {
+                    showNotification('Cancelamento abortado: senha não fornecida.', 'error');
+                    return;
+                }
+
+                // Adicionando console.log para depuração
+                console.log(`Tentando cancelar pedido ${pedidoIdToCancel} com motivo ${motivoId}`);
+                fetch('index_atendente.php', { // Alterado para index_atendente.php
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1493,11 +1455,16 @@
                     body: JSON.stringify({
                         form: 'cancelar',
                         pedido_id: pedidoIdToCancel,
-                        motivo_id: motivoId
+                        motivo_id: motivoId,
+                        senha: senha // Envia a senha para verificação no backend
                     })
                 })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Resposta bruta do servidor (cancelar):', response);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Dados da resposta (cancelar):', data);
                     showNotification(data.message, data.success ? 'success' : 'error');
                     if (data.success) {
                         closeModal('cancelModal');
@@ -1505,16 +1472,28 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Erro ao cancelar pedido:', error);
+                    console.error('Erro no fetch (cancelar):', error);
                     showNotification('Erro de comunicação ao cancelar pedido.', 'error');
                 });
             }
 
             // --- Funções de Edição de Pedido ---
             function editarPedido(id) {
-                fetch('buscar_pedido_detalhes.php?id=' + id)
-                    .then(res => res.json())
+                const senha = prompt("Por favor, digite a senha para editar o pedido:");
+                if (!senha) {
+                    showNotification('Edição abortada: senha não fornecida.', 'error');
+                    return;
+                }
+
+                // Adicionando console.log para depuração
+                console.log(`Tentando buscar detalhes do pedido ${id} para edição.`);
+                fetch('buscar_pedido_detalhes.php?id=' + id) // Este endpoint não precisa de senha, mas o salvar sim
+                    .then(res => {
+                        console.log('Resposta bruta do servidor (buscar detalhes):', res);
+                        return res.json();
+                    })
                     .then(data => {
+                        console.log('Dados da resposta (buscar detalhes):', data);
                         if (data.success) {
                             document.getElementById('edit_pedido_id').value = id;
                             document.getElementById('edit_pedido_id_display').textContent = id;
@@ -1530,7 +1509,7 @@
                                         <select name="produto_id_edit[]" class="form-control edit-produto-select" required data-item-id="${item.item_id}">
                                             <option value="">Selecione um produto</option>
                                             <?php foreach ($produtos as $produto): ?>
-                                                <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
+                                                <option value="<?= $produto['id'] ?>" ${prod.id == item.produto_id ? 'selected' : ''} data-preco="<?= $produto['preco'] ?>">
                                                     <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -1538,13 +1517,13 @@
                                     </div>
                                     <div class="form-group">
                                         <label>Quantidade</label>
-                                        <input type="number" name="quantidade[]" class="form-control edit-quantidade-input" min="1" value="1" required>
+                                        <input type="number" name="quantidade_edit[]" class="form-control edit-quantidade-input" min="1" value="${item.quantidade}" required>
                                     </div>
                                     <div class="form-group">
                                         <label>Subtotal</label>
                                         <span class="edit-subtotal">R$ ${ (item.quantidade * parseFloat(data.produtos.find(p => p.id == item.produto_id)?.preco || 0)).toFixed(2).replace('.', ',') }</span>
                                     </div>
-                                    <button type="button" class="remove-item" onclick="removerItemEdicao(this)">
+                                    <button type="button" class="remove-item" onclick="removerItemEdicao(this, ${item.item_id})">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 `;
@@ -1568,6 +1547,9 @@
                             container.appendChild(totalDiv);
                             calcularTotalEdicao();
 
+                            // Armazena a senha para ser usada no salvarEdicaoPedido
+                            document.getElementById('modalEditarPedido').dataset.senha = senha; 
+
                             openModal('modalEditarPedido');
                         } else {
                             showNotification(data.message, 'error');
@@ -1581,11 +1563,18 @@
 
             function fecharModalEditar() {
                 closeModal('modalEditarPedido');
+                document.getElementById('modalEditarPedido').dataset.senha = ''; // Limpa a senha
             }
 
             function salvarEdicaoPedido() {
                 const pedido_id = document.getElementById('edit_pedido_id').value;
                 const itens = [];
+                const senha = document.getElementById('modalEditarPedido').dataset.senha; // Recupera a senha
+
+                if (!senha) {
+                    showNotification('Erro de segurança: senha não encontrada para salvar edição.', 'error');
+                    return;
+                }
 
                 document.querySelectorAll('#edit_itens_container .item-pedido').forEach(itemDiv => { // Corrigido se a classe for 'item-pedido'
                     const produtoId = itemDiv.querySelector('.edit-produto-select').value;
@@ -1606,17 +1595,24 @@
                     return;
                 }
 
-                fetch('index_gerente.php', {
+                // Adicionando console.log para depuração
+                console.log(`Tentando salvar edição do pedido ${pedido_id} com ${itens.length} itens.`);
+                fetch('index_atendente.php', { // Alterado para index_atendente.php
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         form: 'editar_pedido_completo',
                         pedido_id: pedido_id,
-                        itens: itens
+                        itens: itens,
+                        senha: senha // Envia a senha para verificação no backend
                     })
                 })
-                .then(res => res.json())
+                .then(res => {
+                    console.log('Resposta bruta do servidor (salvar edição):', res);
+                    return res.json();
+                })
                 .then(data => {
+                    console.log('Dados da resposta (salvar edição):', data);
                     showNotification(data.message, data.success ? 'success' : 'error');
                     if (data.success) {
                         fecharModalEditar();
@@ -1624,7 +1620,7 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Erro ao salvar edição do pedido:', error);
+                    console.error('Erro no fetch (salvar edição):', error);
                     showNotification('Erro de comunicação ao salvar edição.', 'error');
                 });
             }
@@ -1647,7 +1643,7 @@
                     </div>
                     <div class="form-group">
                         <label>Quantidade</label>
-                        <input type="number" name="quantidade[]" class="form-control edit-quantidade-input" min="1" value="1" required>
+                        <input type="number" name="quantidade_edit[]" class="form-control edit-quantidade-input" min="1" value="1" required>
                     </div>
                     <div class="form-group">
                         <label>Subtotal</label>

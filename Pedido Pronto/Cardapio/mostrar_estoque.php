@@ -1,10 +1,11 @@
 <?php
 require_once '../Geral/conexao.php';
-require_once '../geral/funcoes.php';
+require_once '../Geral/funcoes.php'; // Changed to 'Geral' for consistency
 
 @session_start();
 
-$produtos = buscarProdutos(); // Verifica se a coluna estoque existe e está trazendo valor
+// Ensure buscarProdutos() fetches the 'estoque' column
+$produtos = buscarProdutosAtivos();
 ?>
 
 <!DOCTYPE html>
@@ -13,9 +14,21 @@ $produtos = buscarProdutos(); // Verifica se a coluna estoque existe e está tra
     <meta charset="UTF-8">
     <title>Estoque - PedidoPronto</title>
     <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --warning: #f8961e;
+            --danger: #f94144;
+            --light: #f8f9fa;
+            --dark: #212529; /* Assuming this is your header dark color */
+            --white: #ffffff; /* Added for consistency */
+            --shadow: 0 2px 10px rgba(0,0,0,0.1); /* Added for consistency */
+        }
+
         body {
             font-family: 'Roboto', sans-serif;
-            background-color: #f5f6fa;
+            background-color: var(--light);
             margin: 0;
             padding: 20px;
             color: #333;
@@ -23,13 +36,13 @@ $produtos = buscarProdutos(); // Verifica se a coluna estoque existe e está tra
         h1 {
             text-align: center;
             margin-bottom: 1.5rem;
-            color: #2f3542;
+            color: var(--dark);
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            background: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: var(--white);
+            box-shadow: var(--shadow);
             border-radius: 8px;
             overflow: hidden;
         }
@@ -39,16 +52,17 @@ $produtos = buscarProdutos(); // Verifica se a coluna estoque existe e está tra
             border-bottom: 1px solid #e1e1e1;
         }
         th {
-            background-color: #3742fa;
-            color: white;
+            background-color: var(--primary);
+            color: var(--white);
         }
         tr:last-child td {
             border-bottom: none;
         }
+        /* General button style for consistency */
         button {
-            background-color: #3742fa;
+            background-color: var(--primary);
             border: none;
-            color: white;
+            color: var(--white);
             padding: 8px 15px;
             border-radius: 4px;
             cursor: pointer;
@@ -56,24 +70,24 @@ $produtos = buscarProdutos(); // Verifica se a coluna estoque existe e está tra
             font-weight: 500;
         }
         button:hover {
-            background-color: #273cfa;
+            background-color: var(--secondary);
         }
         /* Notification styles */
         .notification {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background-color: #28a745;
+            background-color: #28a745; /* Green for success, consider adding a --success-alt or similar */
             color: white;
             padding: 15px 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            box-shadow: var(--shadow);
             display: none;
             font-weight: 600;
             z-index: 1000;
         }
         .notification.error {
-            background-color: #e74c3c;
+            background-color: var(--danger);
         }
         /* Header styles */
         .header {
@@ -81,22 +95,26 @@ $produtos = buscarProdutos(); // Verifica se a coluna estoque existe e está tra
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            background-color: var(--white);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
         }
         .header h2 {
             margin: 0;
-            color: #2f3542;
+            color: var(--dark);
         }
         .header button {
-            background-color: #3742fa;
+            background-color: var(--primary);
             border: none;
-            color: white;
+            color: var(--white);
             padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
         }
         .header button:hover {
-            background-color: #273cfa;
+            background-color: var(--secondary);
         }
     </style>
 </head>

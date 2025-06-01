@@ -9,8 +9,8 @@ $pedidos = buscarPedidos(); // Usando a função do funcoes.php
 <head>
     <meta charset="UTF-8">
     <title>Histórico de Pedidos - PedidoPronto</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary: #4361ee;
@@ -40,27 +40,37 @@ $pedidos = buscarPedidos(); // Usando a função do funcoes.php
             padding: 20px;
         }
 
-        header {
-            background-color: var(--primary);
-            color: white;
-            padding: 15px 0;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+       header {
+            background: linear-gradient(135deg, var(--dark), #1a2530);
+            color: var(--white);
+            padding: 15px 20px;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
 
         .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            max-width: 1400px;
+            max-width: 100%;
             margin: 0 auto;
-            padding: 0 20px;
+            flex-wrap: wrap;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0;
+            font-weight: 600;
+            color: var(--white);
         }
 
         .header-buttons {
             display: flex;
-            gap: 10px;
             flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
         }
 
         h1, h2 {
@@ -68,7 +78,7 @@ $pedidos = buscarPedidos(); // Usando a função do funcoes.php
         }
 
         .btn {
-            background-color: var(--primary);
+            background-color: var(--dark); /* Changed from var(--primary) */
             color: white;
             border: none;
             padding: 8px 15px;
@@ -81,11 +91,15 @@ $pedidos = buscarPedidos(); // Usando a função do funcoes.php
         }
 
         .btn:hover {
-            background-color: var(--secondary);
+            background-color: #1a2530; /* A slightly lighter dark for hover, matching the header gradient */
         }
 
         .btn.logout {
-            background-color: var(--danger);
+            background-color: var(--danger); /* Keeping logout as red for clear distinction */
+        }
+
+        .btn.logout:hover {
+            background-color: #c82333;
         }
 
         .btn.logout:hover {
