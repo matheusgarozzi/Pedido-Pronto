@@ -2,6 +2,8 @@
 
 // CaixaManager.php - COM FORMULARIO DE PAGAMENTO E RELATÓRIO DE VENDAS POR FORMA DE PAGAMENTO
 
+require_once 'funcoesGerente.php'; // Inclui FuncoesGerente para usar registrarAcao
+
 class CaixaManager {
     private $mysqli; // Agora é um objeto mysqli
 
@@ -23,13 +25,13 @@ class CaixaManager {
         $stmt = $this->mysqli->prepare("SELECT id FROM caixa WHERE status = 'aberto'");
         if (!$stmt) {
             error_log('Erro na preparação da consulta (abrirCaixa): ' . $this->mysqli->error);
-            return ['error' => 'Erro interno ao verificar o caixa.'];
+            return ['success' => false, 'message' => 'Erro interno ao verificar o caixa.'];
         }
         $stmt->execute();
         $result = $stmt->get_result();
         if ($result->num_rows > 0) {
             $stmt->close();
-            return ['error' => 'Já existe um caixa aberto. Por favor, feche-o antes de abrir um novo.'];
+            return ['success' => false, 'message' => 'Já existe um caixa aberto. Por favor, feche-o antes de abrir um novo.'];
         }
         $stmt->close();
 
@@ -50,12 +52,17 @@ class CaixaManager {
             $caixaId = $this->mysqli->insert_id;
 
             $this->mysqli->commit();
-            return $this->getCaixaById($caixaId); // Retorna os dados do caixa recém-aberto
+            $caixaAberto = $this->getCaixaById($caixaId);
+            
+            // Registrar ação
+            FuncoesGerente::registrarAcao($responsavel, "abriu o caixa", "Saldo inicial: R$ " . number_format($saldoInicial, 2, ',', '.'));
+
+            return ['success' => true, 'message' => 'Caixa aberto com sucesso!', 'caixa' => $caixaAberto];
 
         } catch (Exception $e) {
             $this->mysqli->rollback();
             error_log('Erro ao abrir o caixa: ' . $e->getMessage());
-            return ['error' => 'Erro ao abrir o caixa: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Erro ao abrir o caixa: ' . $e->getMessage()];
         } finally {
             if (isset($stmt) && $stmt) {
                 $stmt->close();
@@ -72,13 +79,8 @@ class CaixaManager {
         $caixaAtual = $this->getCaixaAtual();
 
         if (!$caixaAtual) {
-            return ['error' => 'Não há caixa aberto para fechar.'];
+            return ['success' => false, 'message' => 'Não há caixa aberto para fechar.'];
         }
-
-        // Se quiser forçar que o responsável seja o mesmo que abriu:
-        // if ($caixaAtual['responsavel'] !== $responsavel) {
-        //     return ['error' => 'O nome do responsável informado não corresponde ao responsável do caixa aberto.'];
-        // }
 
         $this->mysqli->begin_transaction();
 
@@ -93,12 +95,17 @@ class CaixaManager {
             $stmt->execute();
 
             $this->mysqli->commit();
-            return $this->getCaixaById($caixaAtual['id']);
+            $caixaFechado = $this->getCaixaById($caixaAtual['id']);
+            
+            // Registrar ação
+            FuncoesGerente::registrarAcao($responsavel, "fechou o caixa", "ID do Caixa: {$caixaAtual['id']}");
+
+            return ['success' => true, 'message' => 'Caixa fechado com sucesso!', 'caixa' => $caixaFechado];
 
         } catch (Exception $e) {
             $this->mysqli->rollback();
             error_log('Erro ao fechar o caixa: ' . $e->getMessage());
-            return ['error' => 'Erro ao fechar o caixa: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Erro ao fechar o caixa: ' . $e->getMessage()];
         } finally {
             if (isset($stmt) && $stmt) {
                 $stmt->close();
@@ -148,10 +155,10 @@ class CaixaManager {
      * @return float O valor total do pedido.
      */
     private function calcularValorTotalPedido(int $pedidoId): float {
-        // Corrigido para itens_pedido
+        // CORREÇÃO: Alterado de 'itens_pedido' para 'itenspedido'
         $stmt = $this->mysqli->prepare(
             "SELECT SUM(quantidade * preco_unitario) AS total_pedido
-             FROM itens_pedido
+             FROM itenspedido
              WHERE pedido_id = ?"
         );
         if (!$stmt) {
@@ -204,7 +211,8 @@ class CaixaManager {
         $caixaAtual = $this->getCaixaAtual();
 
         if (!$caixaAtual) {
-            return ['error' => 'Não há caixa aberto para adicionar valores.'];
+            // Alterado para retornar um array consistente com 'success' => false
+            return ['success' => false, 'message' => 'Não há caixa aberto para adicionar valores.'];
         }
 
         $this->mysqli->begin_transaction();
@@ -222,12 +230,14 @@ class CaixaManager {
             $stmt->execute();
 
             $this->mysqli->commit();
-            return $this->getCaixaById($caixaAtual['id']);
+            $caixaAtualizado = $this->getCaixaById($caixaAtual['id']);
+            return ['success' => true, 'message' => 'Valor adicionado ao caixa com sucesso.', 'caixa' => $caixaAtualizado];
 
         } catch (Exception $e) {
             $this->mysqli->rollback();
             error_log('Erro ao adicionar valor ao caixa: ' . $e->getMessage());
-            return ['error' => 'Erro ao adicionar valor ao caixa: ' . $e->getMessage()];
+            // Alterado para retornar um array consistente com 'success' => false
+            return ['success' => false, 'message' => 'Erro ao adicionar valor ao caixa: ' . $e->getMessage()];
         } finally {
             if (isset($stmt) && $stmt) {
                 $stmt->close();
@@ -245,7 +255,8 @@ class CaixaManager {
     public function finalizarPedidoEAdicionarAoCaixa(int $pedidoId, int $formaPagamentoId): array {
         $caixaAtual = $this->getCaixaAtual();
         if (!$caixaAtual) {
-            return ['error' => 'Não há caixa aberto para finalizar pedidos.'];
+            // Retorno consistente para 'caixa não aberto'
+            return ['success' => false, 'message' => 'Não há caixa aberto para finalizar pedidos.'];
         }
 
         $this->mysqli->begin_transaction();
@@ -255,7 +266,7 @@ class CaixaManager {
             $valorPedido = $this->calcularValorTotalPedido($pedidoId);
             if ($valorPedido <= 0) {
                 $this->mysqli->rollback();
-                return ['error' => 'Não foi possível calcular o valor do pedido ou o pedido não tem itens.'];
+                return ['success' => false, 'message' => 'Não foi possível calcular o valor do pedido ou o pedido não tem itens.'];
             }
 
             // 2. Atualizar o status do pedido para 'pronto', vincular ao caixa atual e registrar a forma de pagamento
@@ -270,25 +281,30 @@ class CaixaManager {
 
             if ($stmt->affected_rows == 0) {
                 $this->mysqli->rollback();
-                return ['error' => 'Pedido não encontrado ou já está com status "pronto".'];
+                // Mensagem mais específica para o caso de pedido já pronto ou não encontrado
+                return ['success' => false, 'message' => 'Pedido não encontrado ou já está com status "pronto".'];
             }
             $stmt->close();
 
             // 3. Adicionar o valor do pedido ao saldo atual do caixa
             $resultCaixa = $this->adicionarValorAoCaixa($valorPedido);
 
-            if (isset($resultCaixa['error'])) {
+            // Verifica o resultado da chamada interna de forma consistente
+            if ($resultCaixa['success'] === false) {
                 $this->mysqli->rollback();
-                return ['error' => 'Erro ao atualizar pedido e caixa: ' . $resultCaixa['error']];
+                return ['success' => false, 'message' => 'Erro ao atualizar pedido e caixa: ' . $resultCaixa['message']];
             }
 
             $this->mysqli->commit();
-            return ['success' => 'Pedido finalizado e valor adicionado ao caixa com sucesso.', 'caixa' => $resultCaixa, 'valor_pedido' => $valorPedido];
+            // TODO: Substituir "Gerente" pelo nome do usuário logado
+            FuncoesGerente::registrarAcao("Gerente", "finalizou o pedido #{$pedidoId}", "Valor: R$ " . number_format($valorPedido, 2, ',', '.') . ", Forma Pagamento ID: {$formaPagamentoId}");
+
+            return ['success' => true, 'message' => 'Pedido finalizado e valor adicionado ao caixa com sucesso.', 'caixa' => $resultCaixa['caixa'], 'valor_pedido' => $valorPedido];
 
         } catch (Exception $e) {
             $this->mysqli->rollback();
             error_log('Erro ao finalizar pedido e adicionar ao caixa: ' . $e->getMessage());
-            return ['error' => 'Erro ao finalizar pedido e adicionar ao caixa: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Erro ao finalizar pedido e adicionar ao caixa: ' . $e->getMessage()];
         }
     }
 
@@ -368,4 +384,3 @@ class CaixaManager {
         return $vendasPorForma;
     }
 }
-?>

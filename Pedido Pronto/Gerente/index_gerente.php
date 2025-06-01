@@ -63,18 +63,20 @@
                     if ($data['status'] === 'pronto') {
                         $formaPagamentoPadraoId = 1; // Ajuste para o ID da sua forma de pagamento padrão
                         $caixaResultado = $caixaManager->finalizarPedidoEAdicionarAoCaixa($data['pedido_id'], $formaPagamentoPadraoId);
-                        if (isset($caixaResultado['error'])) {
-                            $response = ['success' => false, 'message' => $caixaResultado['error']];
+                        
+                        // Verifica se o resultado da operação do caixa é um array e se indica falha
+                        if (is_array($caixaResultado) && isset($caixaResultado['success']) && $caixaResultado['success'] === false) {
+                            $response = ['success' => false, 'message' => $caixaResultado['message'] ?? 'Erro desconhecido ao finalizar pedido e adicionar ao caixa.'];
                         } else {
-                            // Chamada de método estático
+                            // Se a finalização do caixa foi bem-sucedida, atualize o status do pedido
                             if (FuncoesGerente::atualizarStatus($data['pedido_id'], $data['status'])) {
                                 $response = ['success' => true, 'message' => 'Status atualizado e valor adicionado ao caixa!'];
                             } else {
-                                $response = ['success' => false, 'message' => 'Erro ao atualizar status.'];
+                                $response = ['success' => false, 'message' => 'Erro ao atualizar status do pedido após finalização do caixa.'];
                             }
                         }
                     } else {
-                        // Chamada de método estático
+                        // Chamada de método estático para outros status
                         if (FuncoesGerente::atualizarStatus($data['pedido_id'], $data['status'])) {
                             $response = ['success' => true, 'message' => 'Status atualizado!'];
                         } else {
@@ -145,7 +147,7 @@
     $produtos = FuncoesGerente::buscarProdutos();
     $caixa = $caixaManager->getCaixaAtual(); // Esta linha está correta, pois é do CaixaManager
     $motivosCancelamento = FuncoesGerente::buscarMotivosCancelamento(); // Chamada de método estático
-    $relatorioPedidos = FuncoesGerente::gerarRelatorioPedidos(); // Chamada de método estático
+    // $relatorioPedidos = FuncoesGerente::gerarRelatorioPedidos(); // Removido daqui, agora está em relatorio_pedidos.php
 
     ?>
     <!DOCTYPE html>
@@ -159,6 +161,583 @@
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     </head>
+    <style>
+                :root {
+        --primary: #4361ee;
+        --secondary: #3f37c9;
+        --success: #4cc9f0;
+        --warning: #f8961e;
+        --danger: #f94144;
+        --light: #f8f9fa;
+        --dark: #212529;
+        }
+
+        * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: "Roboto", sans-serif;
+        }
+
+        body {
+        background-color: #f5f7fa;
+        color: #333;
+        }
+
+        .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        }
+
+        header {
+        background-color: var(--primary);
+        color: white;
+        padding: 15px 0;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 20px;
+        }
+
+        .header-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        }
+
+        h1 {
+        font-size: 24px;
+        font-weight: 500;
+        }
+
+        .btn {
+        background-color: #4361ee;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        }
+
+        .btn:hover {
+        background-color: var(--secondary);
+        }
+
+        .btn.logout {
+        background-color: var(--danger);
+        }
+
+        .btn.logout:hover {
+        background-color: #c82333;
+        }
+
+        .caixa-info {
+        background-color: white;
+        color: var(--dark);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .caixa-status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+        }
+
+        .caixa-valores {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        }
+
+        .caixa-valor {
+        text-align: center;
+        min-width: 120px;
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 6px;
+        }
+
+        .caixa-valor span {
+        font-size: 12px;
+        color: #666;
+        display: block;
+        margin-bottom: 5px;
+        }
+
+        .caixa-valor p {
+        font-weight: 500;
+        font-size: 18px;
+        margin: 0;
+        }
+
+        .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        }
+
+        .status-fechado {
+        background-color: var(--danger);
+        color: white;
+        }
+
+        .status-aberto {
+        background-color: var(--success);
+        color: white;
+        }
+
+        .kanban-container {
+        display: flex;
+        gap: 20px;
+        margin-top: 20px;
+        overflow-x: auto;
+        padding-bottom: 20px;
+        }
+
+        .kanban-column {
+        flex: 1;
+        min-width: 280px;
+        background-color: white;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .column-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+        }
+
+        .column-title {
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 14px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        }
+
+        .badge-count {
+        background-color: var(--primary);
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        }
+
+        .card {
+        background-color: white;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
+        cursor: grab;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #eee;
+        position: relative;
+        }
+
+        .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f0f0f0;
+        }
+
+        .card-title {
+        font-weight: 500;
+        color: var(--primary);
+        font-size: 15px;
+        }
+
+        .card-body p {
+        margin-bottom: 5px;
+        font-size: 13px;
+        color: #555;
+        }
+
+        .card-body p strong {
+        color: #333;
+        }
+
+        .card-actions {
+        position: relative;
+        }
+
+        .card-menu-btn {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 1.2em;
+        padding: 0 5px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background-color 0.2s;
+        }
+
+        .card-menu-btn:hover {
+        background-color: #e9ecef;
+        }
+
+        .card-dropdown {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 100;
+        display: none;
+        min-width: 160px;
+        padding: 5px 0;
+        }
+
+        .card-dropdown.show {
+        display: block;
+        }
+
+        .card-dropdown button,
+        .card-dropdown a {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 12px;
+        text-align: left;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        color: #333;
+        text-decoration: none;
+        }
+
+        .card-dropdown button:hover,
+        .card-dropdown a:hover {
+        background-color: #f8f9fa;
+        }
+
+        .card-dropdown button.edit {
+        color: var(--primary);
+        }
+
+        .card-dropdown button.cancel {
+        color: var(--danger);
+        }
+
+        .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        }
+
+        .modal-content {
+        background-color: white;
+        padding: 25px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+        margin: 0;
+        color: var(--primary);
+        font-size: 1.5em;
+        }
+
+        .modal-header .close {
+        background: none;
+        border: none;
+        font-size: 1.5em;
+        cursor: pointer;
+        color: #666;
+        transition: color 0.2s;
+        }
+
+        .modal-header .close:hover {
+        color: var(--danger);
+        }
+
+        .form-group {
+        margin-bottom: 15px;
+        }
+
+        label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+        font-size: 14px;
+        }
+
+        input,
+        select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+        }
+
+        input:focus,
+        select:focus {
+        border-color: var(--primary);
+        outline: none;
+        }
+
+        .notification {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--primary);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        display: none;
+        z-index: 1100;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        }
+
+        .notification.success {
+        background-color: var(--success);
+        }
+
+        .notification.error {
+        background-color: var(--danger);
+        }
+
+        #itensContainer .item-pedido {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 6px;
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr auto;
+        gap: 15px;
+        align-items: center;
+        background-color: #f8f9fa;
+        }
+
+        #itensContainer .item-pedido .form-group {
+        margin-bottom: 0;
+        }
+
+        #itensContainer .item-pedido .subtotal {
+        font-weight: bold;
+        font-size: 14px;
+        color: var(--secondary);
+        }
+
+        #itensContainer .item-pedido button.remove-item {
+        background-color: var(--danger);
+        color: white;
+        border: none;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        transition: background-color 0.2s;
+        }
+
+        #itensContainer .item-pedido button.remove-item:hover {
+        background-color: #dc3545;
+        }
+
+        #totalPedido {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: var(--secondary);
+        margin: 15px 0;
+        padding-top: 15px;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        }
+
+        @media (max-width: 768px) {
+        .header-content {
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .header-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .kanban-container {
+            flex-direction: column;
+        }
+
+        .kanban-column {
+            min-width: 100%;
+        }
+
+        #itensContainer .item-pedido {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        /* Estilo para os itens do dropdown */
+        .dropdown-item {
+            display: block;
+            padding: 8px 15px;
+            color: #333;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .dropdown-item i {
+            margin-right: 8px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Estilo para o botão de submit dentro do dropdown */
+        .dropdown-item button {
+            width: 100%;
+            text-align: left;
+            padding: 0;
+            background: none;
+            border: none;
+        }
+        }
+
+        /* Estilos do Relatório */
+        .report-section {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .report-section h3 {
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        }
+
+        .report-section ul {
+        list-style: none;
+        padding: 0;
+        }
+
+        .report-section ul li {
+        padding: 5px 0;
+        border-bottom: 1px dashed #f0f0f0;
+        }
+
+        .report-section table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        }
+
+        .report-section th,
+        .report-section td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+        }
+
+        .report-section th {
+        background-color: #e9ecef;
+        }
+
+        .kanban-column#cancelado {
+        /* Estilo específico para a coluna cancelado */
+        background-color: #ffe6e6; /* Um fundo mais claro */
+        border: 1px solid #ffcccc;
+        }
+
+        .kanban-column#cancelado .card {
+        background-color: #fffafa; /* Fundo mais claro para cards cancelados */
+        border-left: 5px solid #dc3545; /* Uma borda colorida para destacar */
+        }
+
+    </style>
     <body>
         <header>
             <div class="header-content">
@@ -175,6 +754,15 @@
                     </button>
                     <button class="btn" onclick="location.href='../Clientes/clientes.php'">
                         <i class="fas fa-users"></i> Clientes
+                    </button>
+                    <button class="btn" onclick="location.href='relatorio_pedidos.php'">
+                        <i class="fas fa-chart-bar"></i> Relatórios de Pedidos
+                    </button>
+                    <button class="btn" onclick="location.href='relatorio_produtos_vendidos.php'">
+                        <i class="fas fa-chart-pie"></i> Relatório de Produtos
+                    </button>
+                    <button class="btn" onclick="location.href='relatorio_acoes_equipe.php'">
+                        <i class="fas fa-clipboard-list"></i> Ações da Equipe
                     </button>
                     <button class="btn logout" onclick="location.href='../Geral/logout.php'">
                         <i class="fas fa-sign-out-alt"></i> Sair
@@ -236,12 +824,12 @@
                     <?php endif; endforeach; ?>
                 </div>
 
-                <div class="kanban-column" id="preparando" ondragover="allowDrop(event)" ondrop="drop(event, 'preparando')">
+                <div class="kanban-column" id="preparo" ondragover="allowDrop(event)" ondrop="drop(event, 'preparo')">
                     <div class="column-header">
                         <h3 class="column-title">Em Preparo</h3>
-                        <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'preparando')) ?></span>
+                        <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'preparo')) ?></span>
                     </div>
-                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'preparando'): ?>
+                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'preparo'): ?>
                         <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
                             <div class="card-header">
                                 <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
@@ -366,63 +954,6 @@
                 </div>
             </div>
 
-        <div class="report-section">
-            <h2>Relatório de Pedidos</h2>
-            <ul>
-                <li><strong>Total de Pedidos Cadastrados:</strong> <?= $relatorioPedidos['total_pedidos'] ?></li>
-                <li><strong>Total de Pedidos Cancelados:</strong> <?= $relatorioPedidos['total_pedidos_cancelados'] ?></li>
-                <li><strong>Total de Pedidos Finalizados (Pronto/Entregue):</strong> <?= $relatorioPedidos['total_pedidos_finalizados'] ?></li>
-            </ul>
-
-            <h3>Pedidos por Status:</h3>
-            <ul>
-                <?php foreach ($relatorioPedidos['pedidos_por_status'] as $status => $count): ?>
-                    <li><strong><?= ucfirst(htmlspecialchars($status)) ?>:</strong> <?= $count ?></li>
-                <?php endforeach; ?>
-            </ul>
-
-            <h3>Motivos de Cancelamento:</h3>
-            <?php if (!empty($relatorioPedidos['detalhes_cancelamento_motivo'])): ?>
-                <ul>
-                    <?php foreach ($relatorioPedidos['detalhes_cancelamento_motivo'] as $motivo => $quantidade): ?>
-                        <li><strong><?= htmlspecialchars($motivo) ?>:</strong> <?= $quantidade ?> cancelamentos</li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php else: ?>
-                <p>Nenhum pedido cancelado com motivo registrado.</p>
-            <?php endif; ?>
-
-            <h3>Últimos 10 Pedidos Cancelados:</h3>
-            <?php if (!empty($relatorioPedidos['detalhes_cancelamento_pedidos'])): ?>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Data</th>
-                            <th>Cliente</th>
-                            <th>Itens</th>
-                            <th>Status Anterior</th>
-                            <th>Motivo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($relatorioPedidos['detalhes_cancelamento_pedidos'] as $pedido): ?>
-                            <tr>
-                                <td><?= $pedido['id'] ?></td>
-                                <td><?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></td>
-                                <td><?= htmlspecialchars($pedido['cliente_nome']) ?></td>
-                                <td><?= htmlspecialchars($pedido['produtos']) ?></td>
-                                <td><?= htmlspecialchars($pedido['status_anterior']) ?></td>
-                                <td><?= htmlspecialchars($pedido['motivo_cancelamento']) ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php else: ?>
-                <p>Nenhum pedido cancelado recentemente.</p>
-            <?php endif; ?>
-        </div>
-
 
         <div class="modal" id="pedidoModal">
             <div class="modal-content">
@@ -454,7 +985,7 @@
                                         <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
                                             <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
                                         </option>
-                                    <?php endforeach; ?>
+                            <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -528,6 +1059,10 @@
         <div class="notification" id="notification"></div>
 
         <script>
+            // Variável global para armazenar o status original do pedido arrastado
+            let draggedPedidoOriginalStatus = null;
+            let draggedPedidoId = null;
+
             // Funções para o menu de ações nos cards
             function toggleDropdown(event, btn) {
                 event.stopPropagation();
@@ -558,54 +1093,96 @@
                 }, 3000);
             }
 
-            let draggedPedidoId = null;
-
             function drag(event) {
                 draggedPedidoId = event.target.id;
+                // Encontra a coluna pai para obter o status original
+                let parentColumn = event.target.closest('.kanban-column');
+                if (parentColumn) {
+                    draggedPedidoOriginalStatus = parentColumn.id;
+                } else {
+                    draggedPedidoOriginalStatus = null;
+                }
+
+                // Impede arrastar da coluna 'cancelado'
+                if (draggedPedidoOriginalStatus === 'cancelado') {
+                    event.preventDefault(); // Impede a operação de arrastar
+                    showNotification('Pedidos cancelados não podem ser movidos.', 'error');
+                    draggedPedidoId = null; // Reseta para evitar drops não intencionais
+                    draggedPedidoOriginalStatus = null;
+                }
             }
 
             function allowDrop(event) {
                 event.preventDefault();
             }
 
-            function drop(event, status) {
+            function drop(event, targetStatus) {
                 event.preventDefault();
                 
-                if (!draggedPedidoId) return;
+                if (!draggedPedidoId || draggedPedidoOriginalStatus === null) return; // Garante que um arrasto válido começou
                 
                 const pedidoId = draggedPedidoId.split('-')[1];
 
-                if (status === 'cancelado') {
-                    openCancelModal(pedidoId);
-                    return;
+                let allowTransition = false;
+
+                // Regras de transição
+                if (targetStatus === 'cancelado') {
+                    allowTransition = true; // Permite sempre cancelar
+                } else if (draggedPedidoOriginalStatus === 'pendente' && targetStatus === 'preparo') {
+                    allowTransition = true;
+                } else if (draggedPedidoOriginalStatus === 'preparo' && targetStatus === 'pronto') {
+                    allowTransition = true;
+                } else if (draggedPedidoOriginalStatus === 'pronto' && targetStatus === 'entregue') {
+                    allowTransition = true;
+                } else {
+                    // Qualquer outra transição não é permitida
+                    showNotification(`Transição de "${draggedPedidoOriginalStatus}" para "${targetStatus}" não permitida.`, 'error');
+                    draggedPedidoId = null; // Reseta o estado de arrasto
+                    draggedPedidoOriginalStatus = null;
+                    return; // Interrompe a execução
                 }
 
-                fetch('index_gerente.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        form: 'update',
-                        pedido_id: pedidoId,
-                        status: status
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const pedidoElement = document.getElementById(draggedPedidoId);
-                        document.getElementById(status).appendChild(pedidoElement);
-                        showNotification(data.message, 'success');
-                        setTimeout(() => location.reload(), 1500);
+                // Se for um cancelamento, o modal já lida com o fetch.
+                // Para outras transições permitidas, prossegue com o fetch.
+                if (allowTransition) {
+                    if (targetStatus === 'cancelado') {
+                        openCancelModal(pedidoId); // Abre o modal de cancelamento
                     } else {
-                        showNotification(data.message, 'error');
+                        fetch('index_gerente.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                form: 'update',
+                                pedido_id: pedidoId,
+                                status: targetStatus
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const pedidoElement = document.getElementById(draggedPedidoId);
+                                document.getElementById(targetStatus).appendChild(pedidoElement);
+                                showNotification(data.message, 'success');
+                                setTimeout(() => location.reload(), 1500);
+                            } else {
+                                showNotification(data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro no fetch:', error);
+                            showNotification('Erro de comunicação com o servidor.', 'error');
+                        })
+                        .finally(() => {
+                            draggedPedidoId = null; // Reseta o estado de arrasto
+                            draggedPedidoOriginalStatus = null;
+                        });
                     }
-                })
-                .catch(error => {
-                    console.error('Erro no fetch:', error);
-                    showNotification('Erro de comunicação com o servidor.', 'error');
-                });
+                }
+                // Reseta o estado de arrasto em qualquer caso, mesmo após abrir o modal de cancelamento
+                draggedPedidoId = null;
+                draggedPedidoOriginalStatus = null;
             }
 
             function openModal(modalId) {
@@ -861,15 +1438,16 @@
                                         <label>Produto</label>
                                         <select name="produto_id_edit[]" class="form-control edit-produto-select" required data-item-id="${item.item_id}">
                                             <option value="">Selecione um produto</option>
-                                            ${data.produtos.map(prod =>
-                                                `<option value="${prod.id}" ${prod.id == item.produto_id ? 'selected' : ''} data-preco="${prod.preco}">
-                                                    ${htmlspecialchars(prod.nome)} - R$ ${parseFloat(prod.preco).toFixed(2).replace('.', ',')}
-                                                </option>`).join('')}
+                                            <?php foreach ($produtos as $produto): ?>
+                                                <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
+                                                    <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
+                                                </option>
+                                            <?php endforeach; ?>
                                         </select>
                                     </div>
                                     <div class="form-group">
                                         <label>Quantidade</label>
-                                        <input type="number" name="quantidade_edit[]" class="form-control edit-quantidade-input" min="1" value="${item.quantidade}" required>
+                                        <input type="number" name="quantidade_edit[]" class="form-control edit-quantidade-input" min="1" value="1" required>
                                     </div>
                                     <div class="form-group">
                                         <label>Subtotal</label>
