@@ -1,69 +1,126 @@
 CREATE DATABASE IF NOT EXISTS PedidoProntoDB;
 USE PedidoProntoDB;
 
-
-CREATE TABLE IF NOT EXISTS Clientes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    telefone VARCHAR(20),
-    endereco VARCHAR(200),
-    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-select * from clientes;
-
-	CREATE TABLE IF NOT EXISTS Produtos (
-		id INT AUTO_INCREMENT PRIMARY KEY,
-		nome VARCHAR(100) NOT NULL,
-		descricao TEXT,
-		preco DECIMAL(10,2) NOT NULL,
-		ativo BOOLEAN DEFAULT TRUE
-	);
-
-
-
-
-CREATE TABLE IF NOT EXISTS Pedidos (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    cliente_id INT NOT NULL,
-    data_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('pendente', 'preparo', 'pronto', 'entregue', 'cancelado') DEFAULT 'pendente',
-    observacoes TEXT,
-    
-    CONSTRAINT fk_pedido_cliente
-    FOREIGN KEY (cliente_id) REFERENCES Clientes(id)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  username VARCHAR(50) NOT NULL,
+  senha VARCHAR(255) NOT NULL,
+  email VARCHAR(100) DEFAULT NULL,
+  nivel_acesso ENUM('admin','gerente','atendente','cozinheiro') DEFAULT 'atendente',
+  data_criacao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ultimo_login DATETIME DEFAULT NULL,
+  ativo TINYINT(1) DEFAULT 1,
+  reset_token VARCHAR(255) DEFAULT NULL,
+  reset_token_expira DATETIME DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `email` (`email`) -- Restrição UNIQUE adicionada aqui
 );
 
-
-CREATE TABLE IF NOT EXISTS ItensPedido (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    pedido_id INT NOT NULL,
-    produto_id INT NOT NULL,
-    quantidade INT NOT NULL DEFAULT 1,
-    preco_unitario DECIMAL(10,2) NOT NULL,
-    
-    CONSTRAINT fk_item_pedido
-    FOREIGN KEY (pedido_id) REFERENCES Pedidos(id)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-    
-    CONSTRAINT fk_item_produto
-    FOREIGN KEY (produto_id) REFERENCES Produtos(id)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE
+CREATE TABLE IF NOT EXISTS formas_pagamento (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  nome VARCHAR(100) NOT NULL,
+  ativo TINYINT(1) DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `nome` (`nome`)
 );
 
--- Tabela Caixa
-CREATE TABLE IF NOT EXISTS Caixa (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    status ENUM('aberto', 'fechado') DEFAULT 'aberto',
-    saldo_inicial DECIMAL(10,2) DEFAULT 0,
-    saldo_atual DECIMAL(10,2) DEFAULT 0,
-    data_abertura DATETIME,
-    data_fechamento DATETIME,
-    responsavel VARCHAR(100)
+CREATE TABLE IF NOT EXISTS motivos_cancelamento (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  motivo VARCHAR(255) NOT NULL,
+  ativo TINYINT(1) DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `motivo` (`motivo`)
 );
 
+CREATE TABLE IF NOT EXISTS clientes (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  nome VARCHAR(100) NOT NULL,
+  telefone VARCHAR(20) DEFAULT NULL,
+  endereco VARCHAR(200) DEFAULT NULL,
+  data_cadastro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+);
 
+CREATE TABLE IF NOT EXISTS caixa (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  status ENUM('aberto','fechado') DEFAULT 'aberto',
+  saldo_inicial DECIMAL(10,2) DEFAULT 0.00,
+  saldo_atual DECIMAL(10,2) DEFAULT 0.00,
+  data_abertura DATETIME DEFAULT NULL,
+  data_fechamento DATETIME DEFAULT NULL,
+  responsavel VARCHAR(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
 
+CREATE TABLE IF NOT EXISTS produtos (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  nome VARCHAR(100) NOT NULL,
+  descricao TEXT DEFAULT NULL,
+  preco DECIMAL(10,2) NOT NULL,
+  ativo TINYINT(1) DEFAULT 1,
+  imagem VARCHAR(255) DEFAULT NULL,
+  estoque INT(11) DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS pedidos (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  cliente_id INT(11) NOT NULL,
+  caixa_id INT(11) DEFAULT NULL,
+  data_pedido TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status ENUM('pendente','preparo','pronto','entregue','cancelado') DEFAULT 'pendente',
+  status_anterior VARCHAR(50) DEFAULT NULL,
+  forma_pagamento_id INT(11) DEFAULT NULL,
+  motivo_cancelamento_id INT(11) DEFAULT NULL,
+  observacoes TEXT DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_pedido_cliente` (`cliente_id`),
+  KEY `fk_pedidos_formas_pagamento` (`forma_pagamento_id`),
+  KEY `fk_pedidos_motivos_cancelamento` (`motivo_cancelamento_id`),
+  CONSTRAINT `fk_pedido_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_pedidos_formas_pagamento` FOREIGN KEY (`forma_pagamento_id`) REFERENCES `formas_pagamento` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_pedidos_motivos_cancelamento` FOREIGN KEY (`motivo_cancelamento_id`) REFERENCES `motivos_cancelamento` (`id`) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS itenspedido (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  pedido_id INT(11) NOT NULL,
+  produto_id INT(11) NOT NULL,
+  quantidade INT(11) NOT NULL DEFAULT 1,
+  preco_unitario DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_item_pedido` (`pedido_id`),
+  KEY `fk_item_produto` (`produto_id`),
+  CONSTRAINT `fk_item_pedido` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_item_produto` FOREIGN KEY (`produto_id`) REFERENCES `produtos` (`id`) ON UPDATE CASCADE
+);
+
+-- Tabela: log_acoes
+CREATE TABLE IF NOT EXISTS `log_acoes` (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  data_acao TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  responsavel VARCHAR(100) NOT NULL,
+  acao TEXT NOT NULL,
+  detalhes TEXT DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
+
+INSERT INTO `formas_pagamento` (`id`, `nome`, `ativo`, `created_at`, `updated_at`) VALUES
+(1, 'Dinheiro', 1, NOW(), NOW()),
+(2, 'Cartão de Crédito', 1, NOW(), NOW()),
+(3, 'Cartão de Débito', 1, NOW(), NOW()),
+(4, 'PIX', 1, NOW(), NOW());
+
+INSERT INTO `motivos_cancelamento` (`id`, `motivo`, `ativo`, `created_at`) VALUES
+(1, 'Cliente cancelou', 1, NOW()),
+(2, 'Falta de produto', 1, NOW()),
+(3, 'Erro no pedido', 1, NOW()),
+(4, 'Problemas de entrega', 1, NOW()),
+(5, 'Outro', 1, NOW());
+
+INSERT INTO `usuarios` (`id`, `username`, `senha`, `nivel_acesso`) VALUES
+(1, 'admin', 'fcef631eab0be0f69d940e737b136e0cbcf4f6f1de81f50822862002655af92e', 'admin');
