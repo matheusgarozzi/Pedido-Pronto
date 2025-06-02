@@ -124,6 +124,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['success' => false, 'message' => 'Dados incompletos para fechar pedido.'];
                 }
                 break;
+            case 'pedido': // Adicionado o caso 'pedido' para o atendente
+                if (isset($data['cliente_id']) && isset($data['itens']) && is_array($data['itens'])) {
+                    $pedido_id = FuncoesGerente::cadastrarPedido($data['cliente_id'], $data['itens']);
+                    if ($pedido_id) {
+                        $response = ['success' => true, 'message' => "Pedido #{$pedido_id} cadastrado!"];
+                    } else {
+                        $response = ['success' => false, 'message' => 'Erro ao cadastrar o pedido.'];
+                    }
+                } else {
+                    $response = ['success' => false, 'message' => 'Dados do pedido incompletos.'];
+                }
+                break;
         }
 
         echo json_encode($response);
