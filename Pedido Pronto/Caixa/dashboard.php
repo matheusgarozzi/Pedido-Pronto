@@ -139,7 +139,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         $formasPagamento = $caixaManager->getFormasPagamento();
 
         // Simulação de como você listaria pedidos pendentes
-        $stmtPendentes = $mysqliConnection->prepare("SELECT id, data_pedido, status FROM pedidos WHERE status != 'pronto' LIMIT 5");
+        $stmtPendentes = $mysqliConnection->prepare("SELECT id, data_pedido, status FROM pedidos WHERE status != 'pronto' AND status != 'entregue' AND status != 'cancelado' LIMIT 5"); // Ajustado para não pegar 'entregue' ou 'cancelado'
         if ($stmtPendentes) {
             $stmtPendentes->execute();
             $resultPendentes = $stmtPendentes->get_result();
@@ -187,7 +187,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         <?php
         if ($caixaAtual) {
             $totalVendasCaixa = $caixaManager->getTotalVendasCaixa($caixaAtual['id']);
-            echo "<p>Total de vendas (pedidos 'pronto') para o caixa atual (ID " . $caixaAtual['id'] . "): <strong>R$ " . number_format($totalVendasCaixa, 2, ',', '.') . "</strong></p>";
+            echo "<p>Total de vendas (pedidos 'pronto' ou 'entregue') para o caixa atual (ID " . $caixaAtual['id'] . "): <strong>R$ " . number_format($totalVendasCaixa, 2, ',', '.') . "</strong></p>";
         } else {
             echo "<p>Abra um caixa para ver o total de vendas.</p>";
         }

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../Geral/verificalog.php';
 require_once __DIR__ . '/../Geral/conexao.php';
 require_once __DIR__ . '/funcoesAdmin.php';
+require_once __DIR__ . '/../Caixa/CaixaManager.php'; // Inclui CaixaManager para usar seus métodos de consulta
 
 // Verifica se o usuário é admin
 if ($_SESSION['usuario']['nivel_acesso'] !== 'admin') {
@@ -12,10 +13,15 @@ if ($_SESSION['usuario']['nivel_acesso'] !== 'admin') {
 // Obtém conexão do Database
 $db = Database::getInstance();
 $conn = $db->getConnection();
+$caixaManager = new CaixaManager($conn); // Instancia CaixaManager
 
-// Obtém dados
-$caixa = AdminFunctions::obterUltimoCaixa();
+// Obtém dados do caixa e usuários
+$caixa = AdminFunctions::obterUltimoCaixa(); // Usa AdminFunctions para obter o último caixa
 $usuarios = AdminFunctions::obterUsuarios();
+
+// Obtém informações adicionais do caixa usando CaixaManager (para getTotalVendasCaixa)
+$caixaAtualDetalhes = $caixaManager->getCaixaAtual();
+
 ?>
 
 <!DOCTYPE html>
@@ -239,7 +245,7 @@ $usuarios = AdminFunctions::obterUsuarios();
 
         .caixa-buttons {
             display: flex;
-            flex-direction: column; /* Changed to column for stacking buttons */
+            flex-direction: column; 
             gap: 12px;
             margin-top: 15px;
         }
@@ -381,7 +387,7 @@ $usuarios = AdminFunctions::obterUsuarios();
             <button class="btn primary" onclick="location.href='cadastrousu.php'">
                 <i class="fas fa-users"></i> Usuários
             </button>
-            <button class="btn warning" onclick="location.href='../Caixa/caixaAdmin.php'">
+            <button class="btn warning" onclick="location.href='../Caixa/CaixaAdmin.php'">
                 <i class="fas fa-cash-register"></i> Caixa
             </button>
             <button class="btn logout" onclick="location.href='../Geral/logout.php'">
@@ -405,17 +411,18 @@ $usuarios = AdminFunctions::obterUsuarios();
                             <div class="valor-info">
                                 <i class="fas fa-wallet"></i> Saldo Inicial: <strong>R$ <?= number_format($caixa['saldo_inicial'], 2, ',', '.') ?></strong>
                             </div>
+                            <div class="valor-info">
+                                <i class="fas fa-money-bill-wave"></i> Saldo Atual: <strong>R$ <?= number_format($caixa['saldo_atual'], 2, ',', '.') ?></strong>
+                            </div>
+                            <div class="valor-info">
+                                <?php $totalVendasAdmin = $caixaManager->getTotalVendasCaixa($caixa['id']); ?>
+                                <i class="fas fa-hand-holding-usd"></i> Total Vendas: <strong>R$ <?= number_format($totalVendasAdmin, 2, ',', '.') ?></strong>
+                            </div>
                         <?php endif; ?>
                     </div>
                     
                     <div class="caixa-buttons">
-                        <button class="btn success" onclick="abrirCaixa()">
-                            <i class="fas fa-lock-open"></i> Abrir Caixa
-                        </button>
-                        <button class="btn danger" onclick="fecharCaixa()">
-                            <i class="fas fa-lock"></i> Fechar Caixa
-                        </button>
-                        <button class="btn primary" onclick="location.href='../Gerente/relatorio_pedido.php'">
+                        <button class="btn primary" onclick="location.href='../Gerente/relatorio_pedidos.php'">
                             <i class="fas fa-file-invoice"></i> Relatório de Pedidos
                         </button>
                         <button class="btn primary" onclick="location.href='../Gerente/relatorio_acoes_equipe.php'">
@@ -474,72 +481,7 @@ $usuarios = AdminFunctions::obterUsuarios();
     <div class="notification" id="notification"></div>
 
     <script>
-        function abrirCaixa() {
-            const valor = prompt("Informe o saldo inicial:");
-            if (valor) {
-                showNotification('Abrindo caixa...', 'success');
-                
-                // Simulação da abertura do caixa
-                setTimeout(() => {
-                    showNotification('Caixa aberto com sucesso!', 'success');
-                    
-                    // Simulação de recarregamento da página
-                    setTimeout(() => {
-                        const statusElement = document.querySelector('.status');
-                        const statusIcon = document.querySelector('.status-icon');
-                        
-                        if (statusElement && statusIcon) {
-                            statusElement.classList.remove('closed');
-                            statusElement.classList.add('open');
-                            statusElement.innerHTML = `
-                                <span class="status-icon open"></span>
-                                Status: <strong>aberto</strong>
-                            `;
-                            
-                            // Adiciona a informação do saldo
-                            document.querySelector('.caixa-info').innerHTML += `
-                                <div class="valor-info">
-                                    <i class="fas fa-wallet"></i> Saldo Inicial: <strong>R$ ${parseFloat(valor).toFixed(2)}</strong>
-                                </div>
-                            `;
-                        }
-                    }, 500);
-                }, 800);
-            }
-        }
-
-        function fecharCaixa() {
-            if (confirm('Deseja fechar o caixa?')) {
-                showNotification('Fechando caixa...', 'success');
-                
-                // Simulação do fechamento do caixa
-                setTimeout(() => {
-                    showNotification('Caixa fechado com sucesso!', 'success');
-                    
-                    // Simulação de recarregamento da página
-                    setTimeout(() => {
-                        const statusElement = document.querySelector('.status');
-                        const statusIcon = document.querySelector('.status-icon');
-                        const valorInfo = document.querySelector('.valor-info');
-                        
-                        if (statusElement && statusIcon) {
-                            statusElement.classList.remove('open');
-                            statusElement.classList.add('closed');
-                            statusElement.innerHTML = `
-                                <span class="status-icon closed"></span>
-                                Status: <strong>fechado</strong>
-                            `;
-                            
-                            // Remove a informação do saldo
-                            if (valorInfo) {
-                                valorInfo.remove();
-                            }
-                        }
-                    }, 500);
-                }, 800);
-            }
-        }
-
+        // Funções de notificação (mantidas para compatibilidade visual, mas não usadas para abrir/fechar caixa aqui)
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
             notification.textContent = message;

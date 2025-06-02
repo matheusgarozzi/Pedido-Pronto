@@ -7,6 +7,7 @@ require_once '../Geral/conexao.php'; // Caminho corrigido, assumindo que conexao
 
 // 2. Inclua a classe CaixaManager refatorada
 require_once 'CaixaManager.php'; // Assumindo que CaixaManager.php está na mesma pasta que dashboard.php
+require_once '../Gerente/funcoesGerente.php'; // Para registrar ações de gerente
 
 // 3. Obtenha a conexão mysqli através da sua função global getConnection()
 $mysqliConnection = getConnection(); // Esta função é definida no seu conexao.php e retorna um objeto mysqli
@@ -14,30 +15,30 @@ $mysqliConnection = getConnection(); // Esta função é definida no seu conexao
 // 4. Instancia o CaixaManager com a conexão mysqli
 $caixaManager = new CaixaManager($mysqliConnection);
 
-// --- Tratamento das ações do formulário ---
+// --- Tratamento das ações do formulário (agora redirecionando para a lógica do Gerente) ---
 
 // Supondo que você tenha uma interface onde o usuário clica em "Abrir Caixa"
-if (isset($_POST['action']) && $_POST['action'] === 'abrir_caixa') {
+if (isset($_POST['action']) && $_POST['action'] === 'abrir_caixa_gerente') {
     $responsavel = $_POST['responsavel'] ?? '';
     $saldoInicial = floatval($_POST['saldo_inicial'] ?? 0.00);
 
     $resultado = $caixaManager->abrirCaixa($responsavel, $saldoInicial);
-    if (isset($resultado['error'])) {
-        echo "<p class='error'>Erro ao abrir caixa: " . htmlspecialchars($resultado['error']) . "</p>";
+    if (isset($resultado['success']) && $resultado['success']) {
+        echo "<p class='success'>" . htmlspecialchars($resultado['message']) . "</p>";
     } else {
-        echo "<p class='success'>Caixa aberto com sucesso! ID: " . $resultado['id'] . ", Responsável: " . htmlspecialchars($resultado['responsavel']) . ", Saldo Inicial: R$ " . number_format($resultado['saldo_inicial'], 2, ',', '.') . "</p>";
+        echo "<p class='error'>" . htmlspecialchars($resultado['message']) . "</p>";
     }
 }
 
 // Supondo que o usuário clica em "Fechar Caixa"
-if (isset($_POST['action']) && $_POST['action'] === 'fechar_caixa') {
+if (isset($_POST['action']) && $_POST['action'] === 'fechar_caixa_gerente') {
     $responsavel = $_POST['responsavel_fechamento'] ?? '';
 
     $resultado = $caixaManager->fecharCaixa($responsavel);
-    if (isset($resultado['error'])) {
-        echo "<p class='error'>Erro ao fechar caixa: " . htmlspecialchars($resultado['error']) . "</p>";
+    if (isset($resultado['success']) && $resultado['success']) {
+        echo "<p class='success'>" . htmlspecialchars($resultado['message']) . "</p>";
     } else {
-        echo "<p class='success'>Caixa fechado com sucesso! ID: " . $resultado['id'] . ", Data Fechamento: " . $resultado['data_fechamento'] . "</p>";
+        echo "<p class='error'>" . htmlspecialchars($resultado['message']) . "</p>";
     }
 }
 
@@ -48,11 +49,11 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
 
     $resultado = $caixaManager->finalizarPedidoEAdicionarAoCaixa($pedidoId, $formaPagamentoId); // Passa a forma de pagamento
 
-    if (isset($resultado['error'])) {
-        echo "<p class='error'>Erro ao finalizar pedido: " . htmlspecialchars($resultado['error']) . "</p>";
-    } else {
-        echo "<p class='success'>Pedido ID " . $pedidoId . " finalizado (status 'pronto') e valor de R$ " . number_format($resultado['valor_pedido'], 2, ',', '.') . " adicionado ao caixa.</p>";
+    if (isset($resultado['success']) && $resultado['success']) {
+        echo "<p class='success'>" . htmlspecialchars($resultado['message']) . "</p>";
         echo "<p>Novo saldo do caixa: R$ " . number_format($resultado['caixa']['saldo_atual'], 2, ',', '.') . "</p>";
+    } else {
+        echo "<p class='error'>" . htmlspecialchars($resultado['message']) . "</p>";
     }
 }
 
@@ -84,41 +85,41 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         /* Reset básico e fonte */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; /* Remove margem padrão do body */
-            background-color: var(--light); /* Cor de fundo suave */
-            color: var(--dark); /* Cor de texto padrão */
+            margin: 0;
+            background-color: var(--light);
+            color: var(--dark);
             line-height: 1.6;
         }
 
         /* Estilo do cabeçalho */
         header {
-            background: linear-gradient(135deg, var(--dark), #1a2530); /* Gradiente escuro */
+            background: linear-gradient(135deg, var(--dark), #1a2530);
             color: var(--white);
             padding: 15px 20px;
             box-shadow: var(--shadow);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap; /* Permite que os itens quebrem a linha */
-            position: sticky; /* Cabeçalho fixo no topo */
+            flex-wrap: wrap;
+            position: sticky;
             top: 0;
             z-index: 1000;
         }
 
         header h1 {
             font-size: 1.8rem;
-            margin: 0; /* Remove margem padrão do h1 */
+            margin: 0;
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 12px; /* Espaçamento entre o ícone e o texto */
+            gap: 12px;
         }
 
         /* Estilo dos botões do cabeçalho */
         .header-buttons {
             display: flex;
             gap: 10px;
-            margin-top: 0px; /* Ajuste para alinhamento */
+            margin-top: 0px;
         }
 
         .btn {
@@ -131,7 +132,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
             align-items: center;
             gap: 8px;
             transition: var(--transition);
-            text-decoration: none; /* Remove sublinhado de links */
+            text-decoration: none;
             color: var(--white);
             font-size: 0.9rem;
         }
@@ -144,27 +145,27 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
 
         /* Estilo do container principal */
         .container {
-            max-width: 1000px; /* Aumenta a largura máxima */
-            margin: 25px auto; /* Centraliza e adiciona margem superior/inferior */
-            padding: 30px; /* Mais padding interno */
+            max-width: 1000px;
+            margin: 25px auto;
+            padding: 30px;
             background-color: var(--white);
-            border-radius: 12px; /* Cantos mais arredondados */
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1); /* Sombra mais pronunciada */
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
         }
 
         /* Estilo dos títulos de seção */
         h1 {
-            font-size: 2.5rem; /* Tamanho maior para o título principal */
+            font-size: 2.5rem;
             text-align: center;
             padding-bottom: 20px;
             margin-bottom: 30px;
-            border-bottom: 3px solid var(--primary); /* Linha mais grossa e colorida */
+            border-bottom: 3px solid var(--primary);
             color: var(--dark);
         }
 
         h2 {
-            font-size: 1.8rem; /* Tamanho para subtítulos */
-            margin-top: 35px; /* Mais espaço acima */
+            font-size: 1.8rem;
+            margin-top: 35px;
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 1px solid #eee;
@@ -174,41 +175,41 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
             gap: 10px;
         }
         h2 i {
-            color: var(--primary); /* Ícone com cor primária */
+            color: var(--primary);
         }
 
         /* Estilo dos campos de formulário */
         form div {
-            margin-bottom: 20px; /* Mais espaço entre os grupos de campos */
+            margin-bottom: 20px;
             display: flex;
-            flex-wrap: wrap; /* Permite quebra de linha em telas pequenas */
+            flex-wrap: wrap;
             align-items: center;
-            gap: 15px; /* Espaçamento entre label e input */
+            gap: 15px;
         }
 
         label {
             display: inline-block;
-            width: 180px; /* Mantém o alinhamento das labels */
-            font-weight: 600; /* Texto da label mais forte */
+            width: 180px;
+            font-weight: 600;
             color: #555;
         }
 
         input[type="text"], 
         input[type="number"], 
         select {
-            flex: 1; /* Permite que o input preencha o espaço restante */
-            padding: 12px 15px; /* Mais padding */
+            flex: 1;
+            padding: 12px 15px;
             border: 1px solid #ccc;
-            border-radius: 8px; /* Cantos arredondados */
-            font-size: 1.05rem; /* Fonte um pouco maior */
-            min-width: 250px; /* Garante um tamanho mínimo */
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Sombra interna sutil */
+            border-radius: 8px;
+            font-size: 1.05rem;
+            min-width: 250px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
         }
 
         /* Estilo dos botões de formulário */
         form button[type="submit"] {
             padding: 12px 25px;
-            background-color: var(--primary); /* Usa variável primária */
+            background-color: var(--primary);
             color: var(--white);
             border: none;
             border-radius: 8px;
@@ -219,7 +220,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-top: 10px; /* Espaçamento da label acima */
+            margin-top: 10px;
         }
 
         form button[type="submit"]:hover {
@@ -229,21 +230,21 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         }
 
         /* Botões específicos para as ações */
-        form button[type="submit"]:contains("Abrir Caixa") { background-color: var(--secondary); }
-        form button[type="submit"]:contains("Abrir Caixa"):hover { background-color: #27ae60; }
-        form button[type="submit"]:contains("Fechar Caixa") { background-color: var(--danger); }
-        form button[type="submit"]:contains("Fechar Caixa"):hover { background-color: #c0392b; }
-        form button[type="submit"]:contains("Finalizar Pedido") { background-color: var(--primary); }
-        form button[type="submit"]:contains("Finalizar Pedido"):hover { background-color: var(--primary-dark); }
+        form button[type="submit"].btn-success-caixa { background-color: var(--secondary); }
+        form button[type="submit"].btn-success-caixa:hover { background-color: #27ae60; }
+        form button[type="submit"].btn-danger-caixa { background-color: var(--danger); }
+        form button[type="submit"].btn-danger-caixa:hover { background-color: #c0392b; }
+        form button[type="submit"].btn-primary-caixa { background-color: var(--primary); }
+        form button[type="submit"].btn-primary-caixa:hover { background-color: var(--primary-dark); }
 
         /* Linha divisória */
         hr {
             border: none;
             border-top: 1px dashed #ddd;
-            margin: 40px 0; /* Mais espaço ao redor da linha */
+            margin: 40px 0;
         }
 
-        /* Mensagens de erro e sucesso (mantendo suas classes originais) */
+        /* Mensagens de erro e sucesso */
         .error {
             color: var(--danger);
             background-color: #ffe5e5;
@@ -268,7 +269,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         small {
             color: var(--gray);
             font-size: 0.9em;
-            margin-left: 5px; /* Espaçamento da label/input */
+            margin-left: 5px;
         }
 
         /* Estilo das informações do caixa atual */
@@ -304,17 +305,17 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
             flex-wrap: wrap;
             align-items: center;
             gap: 15px;
-            margin-top: 10px; /* Separa o formulário do parágrafo do pedido */
+            margin-top: 10px;
         }
         
         .pedido-item form label {
-            min-width: unset; /* Remove o min-width para labels internas */
+            min-width: unset;
             width: auto;
         }
 
         .pedido-item form select {
-            flex: 1; /* Permite que o select ocupe o espaço */
-            min-width: 150px; /* Garante um tamanho mínimo para o select */
+            flex: 1;
+            min-width: 150px;
         }
 
         /* Estilo da tabela de histórico */
@@ -324,7 +325,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
             margin-top: 25px;
             background-color: var(--white);
             border-radius: 8px;
-            overflow: hidden; /* Garante que os cantos arredondados sejam aplicados */
+            overflow: hidden;
             box-shadow: var(--shadow);
         }
 
@@ -347,7 +348,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         }
 
         tbody tr:last-child {
-            border-bottom: none; /* Remove borda da última linha */
+            border-bottom: none;
         }
 
         tbody tr:hover {
@@ -357,7 +358,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         td {
             padding: 12px;
             color: #34495e;
-            vertical-align: middle; /* Alinha o conteúdo ao meio */
+            vertical-align: middle;
             font-size: 0.95rem;
         }
 
@@ -401,17 +402,17 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
                 gap: 8px;
             }
             label {
-                width: 100%; /* Labels ocupam toda a largura */
+                width: 100%;
                 min-width: unset;
             }
             input[type="text"], 
             input[type="number"], 
             select {
-                width: 100%; /* Inputs ocupam toda a largura */
+                width: 100%;
                 min-width: unset;
             }
             form button[type="submit"] {
-                width: 100%; /* Botões de formulário ocupam toda a largura */
+                width: 100%;
                 justify-content: center;
                 font-size: 1rem;
             }
@@ -453,7 +454,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
                 border: none;
                 border-bottom: 1px solid #eee;
                 position: relative;
-                padding-left: 50%; /* Espaço para o label antes do conteúdo */
+                padding-left: 50%;
                 text-align: right;
             }
             td:last-child {
@@ -508,7 +509,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
             <?php
             $caixaAtual = $caixaManager->getCaixaAtual();
             if ($caixaAtual) {
-                // A cor do status é definida pelo estilo inline original, mantido.
                 echo "<p><strong>ID do Caixa:</strong> " . $caixaAtual['id'] . "</p>";
                 echo "<p><strong>Status:</strong> <span style='color: " . (($caixaAtual['status'] === 'aberto') ? 'var(--secondary)' : 'var(--danger)') . "; font-weight: bold;'>" . ucfirst($caixaAtual['status']) . "</span></p>";
                 echo "<p><strong>Responsável:</strong> " . htmlspecialchars($caixaAtual['responsavel']) . "</p>";
@@ -516,7 +516,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
                 echo "<p><strong>Saldo Atual:</strong> R$ " . number_format($caixaAtual['saldo_atual'], 2, ',', '.') . "</p>";
                 echo "<p><strong>Data Abertura:</strong> " . $caixaAtual['data_abertura'] . "</p>";
                 if ($caixaAtual['status'] === 'fechado') {
-                    echo "<p><strong>Data Fechamento:</strong> " . $caixaAtual['data_fechamento'] . "</p>";
+                    echo "<p><strong>Data Fechamento:</strong> " . ($caixaAtual['data_fechamento'] ?? 'N/A') . "</p>";
                 }
             } else {
                 echo "<p>Nenhum caixa aberto no momento.</p>";
@@ -528,7 +528,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
 
         <h2><i class="fas fa-lock-open"></i> Abrir Caixa</h2>
         <form method="POST">
-            <input type="hidden" name="action" value="abrir_caixa">
+            <input type="hidden" name="action" value="abrir_caixa_gerente">
             <div>
                 <label for="responsavel">Responsável:</label>
                 <input type="text" id="responsavel" name="responsavel" required>
@@ -537,49 +537,43 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
                 <label for="saldo_inicial">Saldo Inicial (opcional):</label>
                 <input type="number" id="saldo_inicial" name="saldo_inicial" step="0.01" value="0.00">
             </div>
-            <button type="submit"><i class="fas fa-cash-register"></i> Abrir Caixa</button>
+            <button type="submit" class="btn-success-caixa"><i class="fas fa-cash-register"></i> Abrir Caixa</button>
         </form>
 
         <hr>
 
         <h2><i class="fas fa-lock"></i> Fechar Caixa</h2>
         <form method="POST">
-            <input type="hidden" name="action" value="fechar_caixa">
+            <input type="hidden" name="action" value="fechar_caixa_gerente">
             <div>
                 <label for="responsavel_fechamento">Responsável para Fechar:</label>
                 <input type="text" id="responsavel_fechamento" name="responsavel_fechamento" required>
                 <small>(Opcional: Pode ser o mesmo nome do responsável que abriu o caixa, se você quiser forçar)</small>
             </div>
-            <button type="submit"><i class="fas fa-lock"></i> Fechar Caixa</button>
+            <button type="submit" class="btn-danger-caixa"><i class="fas fa-lock"></i> Fechar Caixa</button>
         </form>
 
         <hr>
 
         <h2><i class="fas fa-receipt"></i> Pedidos Pendentes (Finalizar e registrar Forma de Pagamento)</h2>
         <?php
-        // Obtém as formas de pagamento para o select
         $formasPagamento = $caixaManager->getFormasPagamento();
-
-        // Simulação de como você listaria pedidos pendentes
-        // AVISO: Em um ambiente de produção, certifique-se de que esta consulta está otimizada e segura.
-        // O ideal é que o CaixaManager tenha um método para obter pedidos pendentes.
-        // Adicionei 'valor_total' à consulta, pois é comum precisar dele ao finalizar um pedido.
-        $stmtPendentes = $mysqliConnection->prepare("SELECT id, data_pedido, status, valor_total FROM pedidos WHERE status != 'pronto' LIMIT 5");
-        if ($stmtPendentes) {
-            $stmtPendentes->execute();
-            $resultPendentes = $stmtPendentes->get_result();
-            $pedidosPendentes = $resultPendentes->fetch_all(MYSQLI_ASSOC);
-            $stmtPendentes->close();
+        $pedidosPendentes = $mysqliConnection->prepare("SELECT id, data_pedido, status FROM Pedidos WHERE status NOT IN ('pronto', 'entregue', 'cancelado') LIMIT 5");
+        if ($pedidosPendentes) {
+            $pedidosPendentes->execute();
+            $resultPendentes = $pedidosPendentes->get_result();
+            $pedidos = $resultPendentes->fetch_all(MYSQLI_ASSOC);
+            $pedidosPendentes->close();
         } else {
-            $pedidosPendentes = [];
+            $pedidos = [];
             echo "<p class='error'>Erro ao buscar pedidos pendentes: " . $mysqliConnection->error . "</p>";
         }
 
-        if (!empty($pedidosPendentes)) {
+        if (!empty($pedidos)) {
             echo "<div>";
-            foreach ($pedidosPendentes as $pedido) {
+            foreach ($pedidos as $pedido) {
                 echo "<div class='pedido-item'>";
-                echo "<p>Pedido ID: <strong>" . $pedido['id'] . "</strong> | Data: " . $pedido['data_pedido'] . " | Status: " . htmlspecialchars($pedido['status']) . " | Valor Total: R$ " . number_format($pedido['valor_total'] ?? 0, 2, ',', '.') . "</p>"; // Usa ?? 0 para evitar erro se valor_total não existir
+                echo "<p>Pedido ID: <strong>" . $pedido['id'] . "</strong> | Data: " . $pedido['data_pedido'] . " | Status: " . htmlspecialchars($pedido['status']) . "</p>";
                 echo "<form method='POST'>";
                 echo "<input type='hidden' name='action' value='finalizar_pedido'>";
                 echo "<input type='hidden' name='pedido_id' value='" . $pedido['id'] . "'>";
@@ -596,9 +590,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
                 }
                 echo "</select>";
                 echo "</div>";
-                echo "<button type='submit'><i class='fas fa-check-circle'></i> Finalizar Pedido</button>";
+                echo "<button type='submit' class='btn-primary-caixa'><i class='fas fa-check-circle'></i> Finalizar Pedido</button>";
                 echo "</form>";
-                echo "</div>"; // .pedido-item
+                echo "</div>";
             }
             echo "</div>";
         } else {
@@ -613,7 +607,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         <?php
         if ($caixaAtual) {
             $totalVendasCaixa = $caixaManager->getTotalVendasCaixa($caixaAtual['id']);
-            echo "<p>Total de vendas (pedidos 'pronto') para o caixa atual (ID " . $caixaAtual['id'] . "): <strong>R$ " . number_format($totalVendasCaixa, 2, ',', '.') . "</strong></p>";
+            echo "<p>Total de vendas (pedidos 'pronto' ou 'entregue') para o caixa atual (ID " . $caixaAtual['id'] . "): <strong>R$ " . number_format($totalVendasCaixa, 2, ',', '.') . "</strong></p>";
         } else {
             echo "<p>Abra um caixa para ver o total de vendas.</p>";
         }
@@ -625,21 +619,20 @@ if (isset($_POST['action']) && $_POST['action'] === 'finalizar_pedido' && isset(
         <?php
         $historico = $caixaManager->getHistoricoCaixas();
         if (!empty($historico)) {
-            echo "<table>"; // Removi border, cellpadding, cellspacing e style inline
+            echo "<table>";
             echo "<thead><tr><th>ID</th><th>Responsável</th><th>Status</th><th>Saldo Inicial</th><th>Saldo Atual</th><th>Abertura</th><th>Fechamento</th><th>Vendas Total</th></tr></thead>";
             echo "<tbody>";
-            foreach ($historico as $caixa) {
-                // Mantive o estilo inline aqui pois ele já existia no seu código original
-                $statusColor = ($caixa['status'] === 'aberto') ? 'var(--secondary)' : 'var(--danger)';
-                $totalVendas = $caixaManager->getTotalVendasCaixa($caixa['id']);
+            foreach ($historico as $caixaItem) { // Renomeado para evitar conflito com $caixa
+                $statusColor = ($caixaItem['status'] === 'aberto') ? 'var(--secondary)' : 'var(--danger)';
+                $totalVendas = $caixaManager->getTotalVendasCaixa($caixaItem['id']);
                 echo "<tr>";
-                echo "<td>" . $caixa['id'] . "</td>";
-                echo "<td>" . htmlspecialchars($caixa['responsavel']) . "</td>";
-                echo "<td style='color: " . $statusColor . "; font-weight: bold;'>" . ucfirst($caixa['status']) . "</td>";
-                echo "<td>R$ " . number_format($caixa['saldo_inicial'], 2, ',', '.') . "</td>";
-                echo "<td>R$ " . number_format($caixa['saldo_atual'], 2, ',', '.') . "</td>";
-                echo "<td>" . $caixa['data_abertura'] . "</td>";
-                echo "<td>" . ($caixa['data_fechamento'] ?? 'N/A') . "</td>";
+                echo "<td>" . $caixaItem['id'] . "</td>";
+                echo "<td>" . htmlspecialchars($caixaItem['responsavel']) . "</td>";
+                echo "<td style='color: " . $statusColor . "; font-weight: bold;'>" . ucfirst($caixaItem['status']) . "</td>";
+                echo "<td>R$ " . number_format($caixaItem['saldo_inicial'], 2, ',', '.') . "</td>";
+                echo "<td>R$ " . number_format($caixaItem['saldo_atual'], 2, ',', '.') . "</td>";
+                echo "<td>" . $caixaItem['data_abertura'] . "</td>";
+                echo "<td>" . ($caixaItem['data_fechamento'] ?? 'N/A') . "</td>";
                 echo "<td>R$ " . number_format($totalVendas, 2, ',', '.') . "</td>";
                 echo "</tr>";
             }

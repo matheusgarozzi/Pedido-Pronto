@@ -38,7 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $response = ['success' => false, 'message' => 'Erro ao atualizar status do pedido após finalização do caixa.'];
                         }
                     }
-                } else {
+                } else if ($data['status'] === 'entregue') { // Adicionado tratamento para evitar arrastar para 'entregue'
+                     $response = ['success' => false, 'message' => 'Pedidos não podem ser arrastados diretamente para "Entregue". Use o botão "Fechar Pedido" na coluna "Pronto".'];
+                }
+                else {
                     if (FuncoesGerente::atualizarStatus($data['pedido_id'], $data['status'])) {
                         $response = ['success' => true, 'message' => 'Status atualizado!'];
                     } else {
@@ -102,6 +105,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 } else {
                     $response = ['success' => false, 'message' => 'Dados de edição incompletos.'];
+                }
+                break;
+            case 'fechar_pedido': // Adicionado para o atendente também poder fechar pedido
+                if (isset($data['pedido_id']) && isset($data['forma_pagamento_id'])) {
+                    // Para o atendente, vamos adicionar uma verificação de senha simples (APENAS PARA DEMONSTRAÇÃO)
+                    if (!isset($data['senha']) || $data['senha'] !== 'atendente123') { // Senha fixa para demonstração
+                        $response = ['success' => false, 'message' => 'Senha incorreta para fechar este pedido.'];
+                        echo json_encode($response);
+                        exit;
+                    }
+                    $result = $caixaManager->marcarPedidoComoEntregueERegistrarPagamento(
+                        $data['pedido_id'],
+                        $data['forma_pagamento_id']
+                    );
+                    $response = ['success' => $result['success'] ?? false, 'message' => $result['message'] ?? 'Erro desconhecido ao fechar pedido.'];
+                } else {
+                    $response = ['success' => false, 'message' => 'Dados incompletos para fechar pedido.'];
                 }
                 break;
         }
@@ -698,7 +718,7 @@ if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
         <div class="header-content">
             <h1>PedidoPronto - Atendente</h1>
             <div class="header-buttons">
-                <button class="btn" onclick="openModal('pedido')">
+                <button class="btn" onclick="openModal('pedidoModal')">
                     <i class="fas fa-plus"></i> Novo Pedido
                 </button>
                 <button class="btn" onclick="location.href='../cardapio/mostrarcardapio.php'">
@@ -771,7 +791,7 @@ if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 <div class="card-dropdown">
-                                    <a href="../Pedidos/editar_pedido.php?id=<?= $pedido['id'] ?>" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
+                                    <a href="#" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
                                         <i class="fas fa-edit"></i> Editar
                                     </a>
                                     <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
@@ -780,739 +800,797 @@ if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
                                 </div>
                             </div>
                         </div>
-                    <?php endif; endforeach; ?>
-                </div>
-
-                <div class="kanban-column" id="preparo" ondragover="allowDrop(event)" ondrop="drop(event, 'preparo')">
-                    <div class="column-header">
-                        <h3 class="column-title">Em Preparo</h3>
-                        <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'preparo')) ?></span>
+                        <div class="card-body">
+                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
+                        </div>
                     </div>
-                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'preparo'): ?>
-                        <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                            <div class="card-header">
-                                <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                                <div class="card-actions">
-                                    <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <div class="card-dropdown">
-                                        <a href="../Pedidos/editar_pedido.php?id=<?= $pedido['id'] ?>" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
-                                            <i class="fas fa-edit"></i> Editar
-                                        </a>
-                                        <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
+                <?php endif; endforeach; ?>
+            </div>
+
+            <div class="kanban-column" id="preparo" ondragover="allowDrop(event)" ondrop="drop(event, 'preparo')">
+                <div class="column-header">
+                    <h3 class="column-title">Em Preparo</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'preparo')) ?></span>
+                </div>
+                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'preparo'): ?>
+                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                        <div class="card-header">
+                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <a href="#" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+                                    <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
                                         <i class="fas fa-times"></i> Cancelar
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    <?php endif; endforeach; ?>
-                </div>
-
-                <div class="kanban-column" id="pronto" ondragover="allowDrop(event)" ondrop="drop(event, 'pronto')">
-                    <div class="column-header">
-                        <h3 class="column-title">Pronto</h3>
-                        <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pronto')) ?></span>
+                        <div class="card-body">
+                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
+                        </div>
                     </div>
-                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pronto'): ?>
-                        <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                            <div class="card-header">
-                                <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                                <div class="card-actions">
-                                    <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                        <i class="fas fa-ellipsis-v"></i>
+                <?php endif; endforeach; ?>
+            </div>
+
+            <div class="kanban-column" id="pronto" ondragover="allowDrop(event)" ondrop="drop(event, 'pronto')">
+                <div class="column-header">
+                    <h3 class="column-title">Pronto</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'pronto')) ?></span>
+                </div>
+                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'pronto'): ?>
+                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                        <div class="card-header">
+                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <a href="#" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+                                    <button type="button" class="dropdown-item" onclick="openFecharPedidoModal(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-check-circle"></i> Fechar Pedido
                                     </button>
-                                    <div class="card-dropdown">
-                                        <a href="../Pedidos/editar_pedido.php?id=<?= $pedido['id'] ?>" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
-                                            <i class="fas fa-edit"></i> Editar
-                                        </a>
-                                        <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
-                                            <i class="fas fa-times"></i> Cancelar
-                                        </button>
-                                    </div>
+                                    <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                                <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
-                                <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
-                                <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
-                            </div>
                         </div>
-                    <?php endif; endforeach; ?>
-                </div>
-
-                <div class="kanban-column" id="entregue" ondragover="allowDrop(event)" ondrop="drop(event, 'entregue')">
-                    <div class="column-header">
-                        <h3 class="column-title">Entregue</h3>
-                        <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'entregue')) ?></span>
+                        <div class="card-body">
+                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
+                        </div>
                     </div>
-                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'entregue'): ?>
-                        <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                            <div class="card-header">
-                                <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                                <div class="card-actions">
-                                    <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                        <i class="fas fa-ellipsis-v"></i>
+                <?php endif; endforeach; ?>
+            </div>
+
+            <div class="kanban-column" id="entregue" ondragover="allowDrop(event)" ondrop="drop(event, 'entregue')">
+                <div class="column-header">
+                    <h3 class="column-title">Entregue</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'entregue')) ?></span>
+                </div>
+                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'entregue'): ?>
+                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                        <div class="card-header">
+                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <a href="#" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
+                                        <i class="fas fa-eye"></i> Visualizar Detalhes
+                                    </a>
+                                    <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
+                                        <i class="fas fa-times"></i> Cancelar
                                     </button>
-                                    <div class="card-dropdown">
-                                        <a href="../Pedidos/editar_pedido.php?id=<?= $pedido['id'] ?>" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
-                                            <i class="fas fa-eye"></i> Visualizar Detalhes
-                                        </a>
-                                        <button type="button" class="dropdown-item danger" onclick="openCancelModal(<?= $pedido['id'] ?>)">
-                                            <i class="fas fa-times"></i> Cancelar
-                                        </button>
-                                    </div>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                                <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
-                                <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
-                                <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
-                            </div>
                         </div>
-                    <?php endif; endforeach; ?>
-                </div>
-
-                <div class="kanban-column" id="cancelado" ondragover="allowDrop(event)" ondrop="drop(event, 'cancelado')">
-                    <div class="column-header">
-                        <h3 class="column-title">Cancelado</h3>
-                        <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'cancelado')) ?></span>
+                        <div class="card-body">
+                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                            <p><strong>Itens:</strong> <?= htmlspecialchars($pedido['produtos']) ?></p>
+                            <p><strong>Total:</strong> R$ <?= number_format($pedido['total'], 2, ',', '.') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
+                        </div>
                     </div>
-                    <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'cancelado'): ?>
-                        <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
-                            <div class="card-header">
-                                <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
-                                <div class="card-actions">
-                                    <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <div class="card-dropdown">
-                                        <a href="../Pedidos/editar_pedido.php?id=<?= $pedido['id'] ?>" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
-                                            <i class="fas fa-eye"></i> Visualizar Detalhes
-                                        </a>
-                                    </div>
+                <?php endif; endforeach; ?>
+            </div>
+
+            <div class="kanban-column" id="cancelado" ondragover="allowDrop(event)" ondrop="drop(event, 'cancelado')">
+                <div class="column-header">
+                    <h3 class="column-title">Cancelado</h3>
+                    <span class="badge-count"><?= count(array_filter($pedidos, fn($p) => $p['status'] === 'cancelado')) ?></span>
+                </div>
+                <?php foreach ($pedidos as $pedido): if ($pedido['status'] === 'cancelado'): ?>
+                    <div class="card" draggable="true" ondragstart="drag(event)" id="pedido-<?= $pedido['id'] ?>">
+                        <div class="card-header">
+                            <span class="card-title">Pedido #<?= $pedido['id'] ?></span>
+                            <div class="card-actions">
+                                <button class="card-menu-btn" onclick="toggleDropdown(event, this)">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div class="card-dropdown">
+                                    <a href="#" class="dropdown-item edit" onclick="editarPedido(<?= $pedido['id'] ?>); return false;">
+                                        <i class="fas fa-eye"></i> Visualizar Detalhes
+                                    </a>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
-                                <p><strong>Motivo:</strong> <?= htmlspecialchars($pedido['motivo_cancelamento'] ?? 'N/A') ?></p>
-                                <p><strong>Status Anterior:</strong> <?= htmlspecialchars($pedido['status_anterior'] ?? 'N/A') ?></p>
-                                <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
-                            </div>
                         </div>
-                    <?php endif; endforeach; ?>
-                </div>
-            </div>
-
-
-        <div class="modal" id="pedidoModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Novo Pedido</h3>
-                    <button class="close-button" onclick="closeModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Cliente</label>
-                        <select id="cliente_id" class="form-control" required>
-                            <option value="">Selecione um cliente</option>
-                            <?php foreach ($clientes as $cliente): ?>
-                                <option value="<?= $cliente['id'] ?>">
-                                    <?= htmlspecialchars($cliente['nome']) ?> - <?= $cliente['telefone'] ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <h4>Itens do Pedido</h4>
-                    <div id="itensContainer">
-                        <div class="item-pedido">
-                            <div class="form-group">
-                                <label>Produto</label>
-                                <select name="produto_id[]" class="form-control produto-select" required>
-                                    <option value="">Selecione um produto</option>
-                                    <?php foreach ($produtos as $produto): ?>
-                                        <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
-                                            <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
-                                        </option>
-                            <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Quantidade</label>
-                                <input type="number" name="quantidade[]" class="form-control quantidade-input" min="1" value="1" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Subtotal</label>
-                                <span class="subtotal">R$ 0,00</span>
-                            </div>
-                            <button type="button" class="remove-item" onclick="removerItem(this)">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                        <div class="card-body">
+                            <p><strong>Cliente:</strong> <?= htmlspecialchars($pedido['cliente_nome']) ?></p>
+                            <p><strong>Motivo:</strong> <?= htmlspecialchars($pedido['motivo_cancelamento'] ?? 'N/A') ?></p>
+                            <p><strong>Status Anterior:</strong> <?= htmlspecialchars($pedido['status_anterior'] ?? 'N/A') ?></p>
+                            <p><strong>Data:</strong> <?= date('d/m/Y H:i', strtotime($pedido['data_pedido'])) ?></p>
                         </div>
                     </div>
-
-                    <button type="button" class="btn primary" onclick="adicionarItem()" style="margin-bottom: 15px;">
-                        <i class="fas fa-plus"></i> Adicionar Item
-                    </button>
-
-                    <div style="font-weight: bold; font-size: 1.2em;">
-                        <label>Total do Pedido:</label>
-                        <span id="totalPedido">R$ 0,00</span>
-                    </div>
-
-                    <button type="button" class="btn primary" onclick="enviarPedido()" style="margin-top: 15px; width: 100%;">
-                        <i class="fas fa-save"></i> Salvar Pedido
-                    </button>
-                </div>
+                <?php endif; endforeach; ?>
             </div>
         </div>
 
-        <div class="modal" id="cancelModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Cancelar Pedido #<span id="cancelPedidoId"></span></h3>
-                    <button class="close-button" onclick="closeModal('cancelModal')">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="currentCancelPedidoId">
-                    <div class="form-group">
-                        <label for="motivo_cancelamento">Motivo do Cancelamento:</label>
-                        <select id="motivo_cancelamento" class="form-control" required>
-                            <option value="">Selecione um motivo</option>
-                            <?php foreach ($motivosCancelamento as $motivo): ?>
-                                <option value="<?= $motivo['id'] ?>"><?= htmlspecialchars($motivo['motivo']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <button type="button" class="btn danger" onclick="confirmCancelPedido()">Confirmar Cancelamento</button>
-                </div>
-            </div>
-        </div>
 
-        <div class="modal" id="modalEditarPedido">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Editar Pedido #<span id="edit_pedido_id_display"></span></h3>
-                    <button class="close-button" onclick="fecharModalEditar()">&times;</button>
+    <div class="modal" id="pedidoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Novo Pedido</h3>
+                <button class="close-button" onclick="closeModal('pedidoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Cliente</label>
+                    <select id="cliente_id" class="form-control" required>
+                        <option value="">Selecione um cliente</option>
+                        <?php foreach ($clientes as $cliente): ?>
+                            <option value="<?= $cliente['id'] ?>">
+                                <?= htmlspecialchars($cliente['nome']) ?> - <?= $cliente['telefone'] ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" id="edit_pedido_id">
-                    <div id="edit_itens_container">
+
+                <h4>Itens do Pedido</h4>
+                <div id="itensContainer">
+                    <div class="item-pedido">
+                        <div class="form-group">
+                            <label>Produto</label>
+                            <select name="produto_id[]" class="form-control produto-select" required>
+                                <option value="">Selecione um produto</option>
+                                <?php foreach ($produtos as $produto): ?>
+                                    <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
+                                        <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
+                                    </option>
+                        <?php endforeach; ?>
+                            </select>
                         </div>
-                    <button type="button" class="btn primary" onclick="salvarEdicaoPedido()">Salvar Edição</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal" id="fecharCaixaModal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Fechar Caixa</h3>
-                    <button class="close-button" onclick="closeModal('fecharCaixaModal')">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <p>Confirme o fechamento do caixa atual.</p>
-                    <p><strong>ID do Caixa:</strong> <span id="fecharCaixaIdDisplay"></span></p>
-                    <p><strong>Saldo Inicial:</strong> R$ <span id="fecharCaixaSaldoInicial"></span></p>
-                    <p><strong>Saldo Atual:</strong> R$ <span id="fecharCaixaSaldoAtual"></span></p>
-                    
-                    <h4>Total de Vendas por Forma de Pagamento:</h4>
-                    <ul id="vendasPorFormaList">
-                        </ul>
-
-                    <div class="form-group">
-                        <label for="fecharCaixaResponsavel">Responsável pelo Fechamento:</label>
-                        <input type="text" id="fecharCaixaResponsavel" class="form-control" required>
+                        <div class="form-group">
+                            <label>Quantidade</label>
+                            <input type="number" name="quantidade[]" class="form-control quantidade-input" min="1" value="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Subtotal</label>
+                            <span class="subtotal">R$ 0,00</span>
+                        </div>
+                        <button type="button" class="remove-item" onclick="removerItem(this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
-                    <button type="button" class="btn danger" onclick="confirmFecharCaixa()">Confirmar Fechamento</button>
                 </div>
+
+                <button type="button" class="btn primary" onclick="adicionarItem()" style="margin-bottom: 15px;">
+                    <i class="fas fa-plus"></i> Adicionar Item
+                </button>
+
+                <div style="font-weight: bold; font-size: 1.2em;">
+                    <label>Total do Pedido:</label>
+                    <span id="totalPedido">R$ 0,00</span>
+                </div>
+
+                <button type="button" class="btn primary" onclick="enviarPedido()" style="margin-top: 15px; width: 100%;">
+                    <i class="fas fa-save"></i> Salvar Pedido
+                </button>
             </div>
         </div>
+    </div>
 
+    <div class="modal" id="cancelModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Cancelar Pedido #<span id="cancelPedidoId"></span></h3>
+                <button class="close-button" onclick="closeModal('cancelModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="currentCancelPedidoId">
+                <div class="form-group">
+                    <label for="motivo_cancelamento">Motivo do Cancelamento:</label>
+                    <select id="motivo_cancelamento" class="form-control" required>
+                        <option value="">Selecione um motivo</option>
+                        <?php foreach ($motivosCancelamento as $motivo): ?>
+                            <option value="<?= $motivo['id'] ?>"><?= htmlspecialchars($motivo['motivo']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button type="button" class="btn danger" onclick="confirmCancelPedido()">Confirmar Cancelamento</button>
+            </div>
+        </div>
+    </div>
 
-        <div class="notification" id="notification"></div>
+    <div class="modal" id="modalEditarPedido">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Pedido #<span id="edit_pedido_id_display"></span></h3>
+                <button class="close-button" onclick="fecharModalEditar()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit_pedido_id">
+                <div id="edit_itens_container">
+                    </div>
+                <button type="button" class="btn primary" onclick="salvarEdicaoPedido()">Salvar Edição</button>
+            </div>
+        </div>
+    </div>
 
-        <script>
-            // Variável global para armazenar o status original do pedido arrastado
-            let draggedPedidoOriginalStatus = null;
-            let draggedPedidoId = null;
-            // Variável global para o status atual do caixa (usada pelo JS para exibir/ocultar botões e validar ações)
-            const currentCaixaStatus = "<?= $caixa['status'] ?? 'fechado' ?>"; // Obtido do PHP
-            const currentCaixaId = "<?= $caixa['id'] ?? 'null' ?>"; // Obtido do PHP
-            const vendasPorFormaPagamentoData = <?= json_encode($vendasPorFormaPagamento) ?>;
-
-
-            // Funções para o menu de ações nos cards
-            function toggleDropdown(event, btn) {
-                event.stopPropagation();
-                const dropdown = btn.nextElementSibling;
-                const isOpen = dropdown.style.display === 'block';
-
-                document.querySelectorAll('.card-dropdown').forEach(el => el.style.display = 'none');
-
-                dropdown.style.display = isOpen ? 'none' : 'block';
-            }
-
-            document.addEventListener('click', () => {
-                document.querySelectorAll('.card-dropdown').forEach(el => el.style.display = 'none');
-            });
-
-            function showNotification(message, type = 'success') {
-                const notification = document.getElementById('notification');
-                notification.textContent = message;
-                notification.className = 'notification ' + type;
-                notification.style.display = 'block';
-                notification.classList.add('show');
+    <div class="modal" id="fecharCaixaModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Fechar Caixa</h3>
+                <button class="close-button" onclick="closeModal('fecharCaixaModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Confirme o fechamento do caixa atual.</p>
+                <p><strong>ID do Caixa:</strong> <span id="fecharCaixaIdDisplay"></span></p>
+                <p><strong>Saldo Inicial:</strong> R$ <span id="fecharCaixaSaldoInicial"></span></p>
+                <p><strong>Saldo Atual:</strong> R$ <span id="fecharCaixaSaldoAtual"></span></p>
                 
+                <h4>Total de Vendas por Forma de Pagamento:</h4>
+                <ul id="vendasPorFormaList">
+                    </ul>
+
+                <div class="form-group">
+                    <label for="fecharCaixaResponsavel">Responsável pelo Fechamento:</label>
+                    <input type="text" id="fecharCaixaResponsavel" class="form-control" required>
+                </div>
+                <button type="button" class="btn danger" onclick="confirmFecharCaixa()">Confirmar Fechamento</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="fecharPedidoModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Fechar Pedido #<span id="fecharPedidoIdDisplay"></span></h3>
+                <button class="close-button" onclick="closeModal('fecharPedidoModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="currentFecharPedidoId">
+                <p>Confirme o fechamento deste pedido. Ele será marcado como 'entregue'.</p>
+                <div class="form-group">
+                    <label for="forma_pagamento_fechar_pedido">Forma de Pagamento:</label>
+                    <select id="forma_pagamento_fechar_pedido" class="form-control" required>
+                        <option value="">Selecione a forma de pagamento</option>
+                        <?php foreach ($caixaManager->getFormasPagamento() as $forma): ?>
+                            <option value="<?= $forma['id'] ?>"><?= htmlspecialchars($forma['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button type="button" class="btn primary" onclick="confirmFecharPedido()">Confirmar Fechamento</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Variável global para armazenar o status original do pedido arrastado
+        let draggedPedidoOriginalStatus = null;
+        let draggedPedidoId = null;
+        // Variável global para o status atual do caixa (usada pelo JS para exibir/ocultar botões e validar ações)
+        const currentCaixaStatus = "<?= $caixa['status'] ?? 'fechado' ?>"; // Obtido do PHP
+        const currentCaixaId = "<?= $caixa['id'] ?? 'null' ?>"; // Obtido do PHP
+        const vendasPorFormaPagamentoData = <?= json_encode($vendasPorFormaPagamento) ?>;
+
+
+        // Funções para o menu de ações nos cards
+        function toggleDropdown(event, btn) {
+            event.stopPropagation();
+            const dropdown = btn.nextElementSibling;
+            const isOpen = dropdown.style.display === 'block';
+
+            document.querySelectorAll('.card-dropdown').forEach(el => el.style.display = 'none');
+
+            dropdown.style.display = isOpen ? 'none' : 'block';
+        }
+
+        document.addEventListener('click', (event) => {
+            if (!event.target.closest('.card-dropdown') && !event.target.closest('.card-menu-btn')) {
+                document.querySelectorAll('.card-dropdown').forEach(el => el.style.display = 'none');
+            }
+        });
+
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification ' + type;
+            notification.style.display = 'block';
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
                 setTimeout(() => {
-                    notification.classList.remove('show');
-                    setTimeout(() => {
-                        notification.style.display = 'none';
-                    }, 500);
-                }, 3000);
-            }
+                    notification.style.display = 'none';
+                }, 500);
+            }, 3000);
+        }
 
-            function drag(event) {
-                draggedPedidoId = event.target.id;
-                // Encontra a coluna pai para obter o status original
-                let parentColumn = event.target.closest('.kanban-column');
-                if (parentColumn) {
-                    draggedPedidoOriginalStatus = parentColumn.id;
-                } else {
-                    draggedPedidoOriginalStatus = null;
-                }
-
-                // Impede arrastar da coluna 'cancelado'
-                if (draggedPedidoOriginalStatus === 'cancelado') {
-                    event.preventDefault(); // Impede a operação de arrastar
-                    showNotification('Pedidos cancelados não podem ser movidos.', 'error');
-                    draggedPedidoId = null; // Reseta para evitar drops não intencionais
-                    draggedPedidoOriginalStatus = null;
-                }
-            }
-
-            function allowDrop(event) {
-                event.preventDefault();
-            }
-
-            function drop(event, targetStatus) {
-                event.preventDefault();
-                
-                if (!draggedPedidoId || draggedPedidoOriginalStatus === null) return; // Garante que um arrasto válido começou
-                
-                const pedidoId = draggedPedidoId.split('-')[1];
-
-                // Validação de caixa aberto para mover para 'pronto'
-                if (targetStatus === 'pronto' && currentCaixaStatus !== 'aberto') {
-                    showNotification('O caixa precisa estar aberto para finalizar pedidos.', 'error');
-                    draggedPedidoId = null;
-                    draggedPedidoOriginalStatus = null;
-                    return;
-                }
-
-                let allowTransition = false;
-
-                // Regras de transição
-                if (targetStatus === 'cancelado') {
-                    allowTransition = true; // Permite sempre cancelar
-                } else if (draggedPedidoOriginalStatus === 'pendente' && targetStatus === 'preparo') {
-                    allowTransition = true;
-                } else if (draggedPedidoOriginalStatus === 'preparo' && targetStatus === 'pronto') {
-                    allowTransition = true;
-                } else if (draggedPedidoOriginalStatus === 'pronto' && targetStatus === 'entregue') {
-                    allowTransition = true;
-                } else {
-                    // Qualquer outra transição não é permitida
-                    showNotification(`Transição de "${draggedPedidoOriginalStatus}" para "${targetStatus}" não permitida.`, 'error');
-                    draggedPedidoId = null; // Reseta o estado de arrasto
-                    draggedPedidoOriginalStatus = null;
-                    return; // Interrompe a execução
-                }
-
-                // Se for um cancelamento, o modal já lida com o fetch.
-                // Para outras transições permitidas, prossegue com o fetch.
-                if (allowTransition) {
-                    if (targetStatus === 'cancelado') {
-                        openCancelModal(pedidoId); // Abre o modal de cancelamento
-                    } else {
-                        // Adicionando console.log para depuração
-                        console.log(`Tentando atualizar pedido ${pedidoId} para status ${targetStatus}`);
-                        fetch('index_atendente.php', { // Alterado para index_atendente.php
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                form: 'update',
-                                pedido_id: pedidoId,
-                                status: targetStatus,
-                                senha: 'atendente123' // Senha fixa para demonstração
-                            })
-                        })
-                        .then(response => {
-                            console.log('Resposta bruta do servidor (update):', response);
-                            return response.json();
-                        })
-                        .then(data => {
-                            console.log('Dados da resposta (update):', data);
-                            if (data.success) {
-                                const pedidoElement = document.getElementById(draggedPedidoId);
-                                document.getElementById(targetStatus).appendChild(pedidoElement);
-                                showNotification(data.message, 'success');
-                                setTimeout(() => location.reload(), 1500);
-                            } else {
-                                showNotification(data.message, 'error');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Erro no fetch (update):', error);
-                            showNotification('Erro de comunicação com o servidor.', 'error');
-                        })
-                        .finally(() => {
-                            draggedPedidoId = null; // Reseta o estado de arrasto
-                            draggedPedidoOriginalStatus = null;
-                        });
-                    }
-                }
-                // Reseta o estado de arrasto em qualquer caso, mesmo após abrir o modal de cancelamento
-                draggedPedidoId = null;
+        function drag(event) {
+            draggedPedidoId = event.target.id;
+            // Encontra a coluna pai para obter o status original
+            let parentColumn = event.target.closest('.kanban-column');
+            if (parentColumn) {
+                draggedPedidoOriginalStatus = parentColumn.id;
+            } else {
                 draggedPedidoOriginalStatus = null;
             }
 
-            function openModal(modalId) {
-                document.getElementById(modalId + 'Modal').style.display = 'flex';
-                if (modalId === 'pedido') {
-                    calcularTotal();
-                }
+            // Impede arrastar da coluna 'cancelado' ou 'entregue'
+            if (draggedPedidoOriginalStatus === 'cancelado' || draggedPedidoOriginalStatus === 'entregue') {
+                event.preventDefault(); // Impede a operação de arrastar
+                showNotification('Pedidos "cancelados" ou "entregues" não podem ser movidos via arrasto.', 'error');
+                draggedPedidoId = null; // Reseta para evitar drops não intencionais
+                draggedPedidoOriginalStatus = null;
+            }
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drop(event, targetStatus) {
+            event.preventDefault();
+            
+            if (!draggedPedidoId || draggedPedidoOriginalStatus === null) return; // Garante que um arrasto válido começou
+            
+            const pedidoId = draggedPedidoId.split('-')[1];
+
+            // Validação de caixa aberto para mover para 'pronto'
+            if (targetStatus === 'pronto' && currentCaixaStatus !== 'aberto') {
+                showNotification('O caixa precisa estar aberto para finalizar pedidos.', 'error');
+                draggedPedidoId = null;
+                draggedPedidoOriginalStatus = null;
+                return;
             }
 
-            function closeModal(modalId = null) {
-                if (modalId) {
-                    document.getElementById(modalId).style.display = 'none';
+            let allowTransition = false;
+
+            // Regras de transição
+            if (targetStatus === 'cancelado') {
+                allowTransition = true; // Permite sempre cancelar
+            } else if (draggedPedidoOriginalStatus === 'pendente' && targetStatus === 'preparo') {
+                allowTransition = true;
+            } else if (draggedPedidoOriginalStatus === 'preparo' && targetStatus === 'pronto') {
+                allowTransition = true;
+            } else { // Removida a transição direta para "entregue" via arrasto
+                // Qualquer outra transição não é permitida via arrasto
+                showNotification(`Transição de "${draggedPedidoOriginalStatus}" para "${targetStatus}" não permitida via arrasto.`, 'error');
+                draggedPedidoId = null; // Reseta o estado de arrasto
+                draggedPedidoOriginalStatus = null;
+                return; // Interrompe a execução
+            }
+
+            // Se for um cancelamento, o modal já lida com o fetch.
+            // Para outras transições permitidas, prossegue com o fetch.
+            if (allowTransition) {
+                if (targetStatus === 'cancelado') {
+                    openCancelModal(pedidoId); // Abre o modal de cancelamento
                 } else {
-                    document.querySelectorAll('.modal').forEach(modal => {
-                        modal.style.display = 'none';
-                    });
-                }
-            }
-
-            function abrirCaixaComPrompt() {
-                const responsavel = prompt("Digite o nome do responsável pelo caixa:");
-                if (responsavel) {
-                    let saldoInicial = prompt("Digite o saldo inicial para abrir o caixa (opcional, padrão 0.00):");
-                    saldoInicial = parseFloat(saldoInicial) || 0.00; // Garante que seja um número ou 0.00
+                    const senha = prompt("Por favor, digite a senha para mover o pedido:"); // Solicita senha para movimentação
+                    if (!senha) {
+                        showNotification('Movimentação abortada: senha não fornecida.', 'error');
+                        draggedPedidoId = null;
+                        draggedPedidoOriginalStatus = null;
+                        return;
+                    }
 
                     // Adicionando console.log para depuração
-                    console.log(`Tentando abrir caixa com responsável: ${responsavel}, saldo: ${saldoInicial}`);
+                    console.log(`Tentando atualizar pedido ${pedidoId} para status ${targetStatus}`);
                     fetch('index_atendente.php', { // Alterado para index_atendente.php
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            form: 'abrir_caixa_atendente', // Alterado para ação do atendente
-                            responsavel: responsavel,
-                            saldo_inicial: saldoInicial
+                            form: 'update',
+                            pedido_id: pedidoId,
+                            status: targetStatus,
+                            senha: senha // Envia a senha para verificação no backend
                         })
                     })
                     .then(response => {
-                        console.log('Resposta bruta do servidor (abrir caixa):', response);
+                        console.log('Resposta bruta do servidor (update):', response);
                         return response.json();
                     })
                     .then(data => {
-                        console.log('Dados da resposta (abrir caixa):', data);
-                        showNotification(data.message, data.success ? 'success' : 'error');
+                        console.log('Dados da resposta (update):', data);
                         if (data.success) {
-                            location.reload();
+                            const pedidoElement = document.getElementById(draggedPedidoId);
+                            document.getElementById(targetStatus).appendChild(pedidoElement);
+                            showNotification(data.message, 'success');
+                            setTimeout(() => location.reload(), 1500);
+                        } else {
+                            showNotification(data.message, 'error');
                         }
                     })
                     .catch(error => {
-                        console.error('Erro no fetch (abrir caixa):', error);
-                        showNotification('Erro de comunicação ao abrir caixa.', 'error');
+                        console.error('Erro no fetch (update):', error);
+                        showNotification('Erro de comunicação com o servidor.', 'error');
+                    })
+                    .finally(() => {
+                        draggedPedidoId = null; // Reseta o estado de arrasto
+                        draggedPedidoOriginalStatus = null;
                     });
                 }
             }
+            // Reseta o estado de arrasto em qualquer caso, mesmo após abrir o modal de cancelamento
+            draggedPedidoId = null;
+            draggedPedidoOriginalStatus = null;
+        }
 
-            function openFecharCaixaModal() {
-                // Preenche os dados do caixa no modal
-                document.getElementById('fecharCaixaIdDisplay').textContent = "<?= $caixa['id'] ?? 'N/A' ?>";
-                document.getElementById('fecharCaixaSaldoInicial').textContent = "<?= number_format($caixa['saldo_inicial'] ?? 0, 2, ',', '.') ?>";
-                document.getElementById('fecharCaixaSaldoAtual').textContent = "<?= number_format($caixa['saldo_atual'] ?? 0, 2, ',', '.') ?>";
-
-                // A lógica para obter vendasPorFormaPagamentoData precisa ser feita no PHP ou via AJAX
-                // Por enquanto, usaremos a variável PHP que já foi populada
-                const vendasList = document.getElementById('vendasPorFormaList');
-                vendasList.innerHTML = ''; // Limpa a lista anterior
-
-                // Esta parte precisa ser adaptada se você não tiver $vendasPorFormaPagamentoData no PHP do atendente
-                // Como não temos essa informação no atendente, vou simular ou deixar um placeholder
-                // Se você quiser que o atendente veja isso, precisará de uma nova função em CaixaManager para buscar.
-                // Por simplicidade, vou deixar um placeholder aqui, já que o foco é o gerente.
-                const li = document.createElement('li');
-                li.textContent = 'Detalhes de vendas por forma de pagamento não disponíveis para o atendente.';
-                vendasList.appendChild(li);
-
-                openModal('fecharCaixa');
-            }
-
-            function confirmFecharCaixa() {
-                const responsavel = document.getElementById('fecharCaixaResponsavel').value;
-                if (!responsavel) {
-                    showNotification('Por favor, digite o nome do responsável.', 'error');
-                    return;
-                }
-
-                // Adicionando console.log para depuração
-                console.log(`Tentando fechar caixa com responsável: ${responsavel}`);
-                fetch('index_atendente.php', { // Alterado para index_atendente.php
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        form: 'fechar_caixa_atendente', // Alterado para ação do atendente
-                        responsavel: responsavel
-                    })
-                })
-                .then(response => {
-                    console.log('Resposta bruta do servidor (fechar caixa):', response);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Dados da resposta (fechar caixa):', data);
-                    showNotification(data.message, data.success ? 'success' : 'error');
-                    if (data.success) {
-                        closeModal('fecharCaixaModal');
-                        setTimeout(() => location.reload(), 1500);
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro no fetch (fechar caixa):', error);
-                    showNotification('Erro de comunicação ao fechar caixa.', 'error');
-                });
-            }
-
-            // Funções para adicionar/remover itens do pedido
-            function adicionarItem() {
-                const container = document.getElementById('itensContainer');
-                const novoItem = document.createElement('div');
-                novoItem.className = 'item-pedido';
-                novoItem.innerHTML = `
-                    <div class="form-group">
-                        <label>Produto</label>
-                        <select name="produto_id[]" class="form-control produto-select" required>
-                            <option value="">Selecione um produto</option>
-                            <?php foreach ($produtos as $produto): ?>
-                                <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
-                                    <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Quantidade</label>
-                        <input type="number" name="quantidade[]" class="form-control quantidade-input" min="1" value="1" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Subtotal</label>
-                        <span class="subtotal">R$ 0,00</span>
-                    </div>
-                    <button type="button" class="remove-item" onclick="removerItem(this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                `;
-                container.appendChild(novoItem);
-                
-                novoItem.querySelector('.produto-select').addEventListener('change', calcularSubtotal);
-                novoItem.querySelector('.quantidade-input').addEventListener('input', calcularSubtotal);
-            }
-
-            function removerItem(btn) {
-                const item = btn.closest('.item-pedido');
-                if (document.querySelectorAll('.item-pedido').length > 1) {
-                    item.remove();
-                    calcularTotal();
-                } else {
-                    showNotification('O pedido deve ter pelo menos um item.', 'error');
-                }
-            }
-
-            function calcularSubtotal(event) {
-                const item = event.target.closest('.item-pedido');
-                const select = item.querySelector('.produto-select');
-                const input = item.querySelector('.quantidade-input');
-                const subtotalSpan = item.querySelector('.subtotal');
-
-                const preco = parseFloat(select.selectedOptions[0]?.dataset.preco || 0);
-                const quantidade = parseInt(input.value) || 0;
-                const subtotal = preco * quantidade;
-
-                subtotalSpan.textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
+        // CORREÇÃO APLICADA AQUI: A função openModal foi ajustada para aceitar o ID exato do modal.
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            if (modalId === 'pedidoModal') { // Usa o ID completo aqui para o modal de novo pedido
                 calcularTotal();
             }
+        }
 
-            function calcularTotal() {
-                let total = 0;
-                document.querySelectorAll('.item-pedido').forEach(item => {
-                    const subtotalText = item.querySelector('.subtotal').textContent;
-                    const subtotal = parseFloat(subtotalText.replace('R$ ', '').replace(',', '.')) || 0;
-                    total += subtotal;
+        function closeModal(modalId = null) {
+            if (modalId) {
+                document.getElementById(modalId).style.display = 'none';
+            } else {
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.style.display = 'none';
                 });
-
-                document.getElementById('totalPedido').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
             }
+        }
 
-            function enviarPedido() {
-                const clienteId = document.getElementById('cliente_id').value;
-                const itens = [];
-
-                if (!clienteId) {
-                    showNotification('Selecione um cliente', 'error');
-                    return;
-                }
-
-                document.querySelectorAll('.item-pedido').forEach(item => {
-                    const produtoId = item.querySelector('.produto-select').value;
-                    const quantidade = item.querySelector('.quantidade-input').value;
-
-                    if (produtoId && quantidade) {
-                        itens.push({
-                            produto_id: produtoId,
-                            quantidade: quantidade
-                        });
-                    }
-                });
-
-                if (itens.length === 0) {
-                    showNotification('Adicione pelo menos um item ao pedido', 'error');
-                    return;
-                }
+        function abrirCaixaComPrompt() {
+            const responsavel = prompt("Digite o nome do responsável pelo caixa:");
+            if (responsavel) {
+                let saldoInicial = prompt("Digite o saldo inicial para abrir o caixa (opcional, padrão 0.00):");
+                saldoInicial = parseFloat(saldoInicial) || 0.00; // Garante que seja um número ou 0.00
 
                 // Adicionando console.log para depuração
-                console.log('Tentando enviar novo pedido:', { cliente_id: clienteId, itens: itens });
+                console.log(`Tentando abrir caixa com responsável: ${responsavel}, saldo: ${saldoInicial}`);
                 fetch('index_atendente.php', { // Alterado para index_atendente.php
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        form: 'pedido',
-                        cliente_id: clienteId,
-                        itens: itens
+                        form: 'abrir_caixa_atendente', // Alterado para ação do atendente
+                        responsavel: responsavel,
+                        saldo_inicial: saldoInicial
                     })
                 })
                 .then(response => {
-                    console.log('Resposta bruta do servidor (novo pedido):', response);
+                    console.log('Resposta bruta do servidor (abrir caixa):', response);
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Dados da resposta (novo pedido):', data);
+                    console.log('Dados da resposta (abrir caixa):', data);
                     showNotification(data.message, data.success ? 'success' : 'error');
                     if (data.success) {
-                        closeModal();
-                        setTimeout(() => location.reload(), 1500);
+                        location.reload();
                     }
                 })
                 .catch(error => {
-                    console.error('Erro no fetch (novo pedido):', error);
-                    showNotification('Erro de comunicação com o servidor.', 'error');
+                    console.error('Erro no fetch (abrir caixa):', error);
+                    showNotification('Erro de comunicação ao abrir caixa.', 'error');
                 });
             }
+        }
 
-            // --- Funções para Cancelamento de Pedido ---
-            let pedidoIdToCancel = null;
+        function openFecharCaixaModal() {
+            // Preenche os dados do caixa no modal
+            document.getElementById('fecharCaixaIdDisplay').textContent = "<?= $caixa['id'] ?? 'N/A' ?>";
+            document.getElementById('fecharCaixaSaldoInicial').textContent = "R$ <?= number_format($caixa['saldo_inicial'] ?? 0, 2, ',', '.') ?>";
+            document.getElementById('fecharCaixaSaldoAtual').textContent = "R$ <?= number_format($caixa['saldo_atual'] ?? 0, 2, ',', '.') ?>";
 
-            function openCancelModal(pedidoId) {
-                pedidoIdToCancel = pedidoId;
-                document.getElementById('cancelPedidoId').textContent = pedidoId;
-                document.getElementById('currentCancelPedidoId').value = pedidoId;
-                openModal('cancel');
+            // A lógica para obter vendasPorFormaPagamentoData precisa ser feita no PHP ou via AJAX
+            // Por enquanto, usaremos a variável PHP que já foi populada
+            const vendasList = document.getElementById('vendasPorFormaList');
+            vendasList.innerHTML = ''; // Limpa a lista anterior
+
+            if (Object.keys(vendasPorFormaPagamentoData).length > 0) {
+                 for (const forma in vendasPorFormaPagamentoData) {
+                    const li = document.createElement('li');
+                    li.textContent = `${forma}: R$ ${parseFloat(vendasPorFormaPagamentoData[forma]).toFixed(2).replace('.', ',')}`;
+                    vendasList.appendChild(li);
+                }
+            } else {
+                const li = document.createElement('li');
+                li.textContent = 'Nenhuma venda registrada neste caixa.';
+                vendasList.appendChild(li);
             }
 
-            function confirmCancelPedido() {
-                const motivoId = document.getElementById('motivo_cancelamento').value;
-                if (!motivoId) {
-                    showNotification('Por favor, selecione um motivo de cancelamento.', 'error');
-                    return;
-                }
+            openModal('fecharCaixaModal'); // Correção para passar o ID completo do modal
+        }
 
-                const senha = prompt("Por favor, digite a senha para cancelar o pedido:");
-                if (!senha) {
-                    showNotification('Cancelamento abortado: senha não fornecida.', 'error');
-                    return;
-                }
+        function confirmFecharCaixa() {
+            const responsavel = document.getElementById('fecharCaixaResponsavel').value;
+            if (!responsavel) {
+                showNotification('Por favor, digite o nome do responsável.', 'error');
+                return;
+            }
 
-                // Adicionando console.log para depuração
-                console.log(`Tentando cancelar pedido ${pedidoIdToCancel} com motivo ${motivoId}`);
-                fetch('index_atendente.php', { // Alterado para index_atendente.php
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        form: 'cancelar',
-                        pedido_id: pedidoIdToCancel,
-                        motivo_id: motivoId,
-                        senha: senha // Envia a senha para verificação no backend
-                    })
+            // Adicionando console.log para depuração
+            console.log(`Tentando fechar caixa com responsável: ${responsavel}`);
+            fetch('index_atendente.php', { // Alterado para index_atendente.php
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    form: 'fechar_caixa_atendente', // Alterado para ação do atendente
+                    responsavel: responsavel
                 })
-                .then(response => {
-                    console.log('Resposta bruta do servidor (cancelar):', response);
-                    return response.json();
+            })
+            .then(response => {
+                console.log('Resposta bruta do servidor (fechar caixa):', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Dados da resposta (fechar caixa):', data);
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    closeModal('fecharCaixaModal');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Erro no fetch (fechar caixa):', error);
+                showNotification('Erro de comunicação ao fechar caixa.', 'error');
+            });
+        }
+
+        // Funções para adicionar/remover itens do pedido
+        function adicionarItem() {
+            const container = document.getElementById('itensContainer');
+            const novoItem = document.createElement('div');
+            novoItem.className = 'item-pedido';
+            novoItem.innerHTML = `
+                <div class="form-group">
+                    <label>Produto</label>
+                    <select name="produto_id[]" class="form-control produto-select" required>
+                        <option value="">Selecione um produto</option>
+                        <?php foreach ($produtos as $produto): ?>
+                            <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
+                                <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade</label>
+                    <input type="number" name="quantidade[]" class="form-control quantidade-input" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Subtotal</label>
+                    <span class="subtotal">R$ 0,00</span>
+                </div>
+                <button type="button" class="remove-item" onclick="removerItem(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(novoItem);
+            
+            novoItem.querySelector('.produto-select').addEventListener('change', calcularSubtotal);
+            novoItem.querySelector('.quantidade-input').addEventListener('input', calcularSubtotal);
+        }
+
+        function removerItem(btn) {
+            const item = btn.closest('.item-pedido');
+            if (document.querySelectorAll('.item-pedido').length > 1) {
+                item.remove();
+                calcularTotal();
+            } else {
+                showNotification('O pedido deve ter pelo menos um item.', 'error');
+            }
+        }
+
+        function calcularSubtotal(event) {
+            const item = event.target.closest('.item-pedido');
+            const select = item.querySelector('.produto-select');
+            const input = item.querySelector('.quantidade-input');
+            const subtotalSpan = item.querySelector('.subtotal');
+
+            const preco = parseFloat(select.selectedOptions[0]?.dataset.preco || 0);
+            const quantidade = parseInt(input.value) || 0;
+            const subtotal = preco * quantidade;
+
+            subtotalSpan.textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
+            calcularTotal();
+        }
+
+        function calcularTotal() {
+            let total = 0;
+            document.querySelectorAll('.item-pedido').forEach(item => {
+                const subtotalText = item.querySelector('.subtotal').textContent;
+                const subtotal = parseFloat(subtotalText.replace('R$ ', '').replace(',', '.')) || 0;
+                total += subtotal;
+            });
+
+            document.getElementById('totalPedido').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+        }
+
+        function enviarPedido() {
+            const clienteId = document.getElementById('cliente_id').value;
+            const itens = [];
+
+            if (!clienteId) {
+                showNotification('Selecione um cliente', 'error');
+                return;
+            }
+
+            document.querySelectorAll('.item-pedido').forEach(item => {
+                const produtoId = item.querySelector('.produto-select').value;
+                const quantidade = item.querySelector('.quantidade-input').value;
+
+                if (produtoId && quantidade) {
+                    itens.push({
+                        produto_id: produtoId,
+                        quantidade: quantidade
+                    });
+                }
+            });
+
+            if (itens.length === 0) {
+                showNotification('Adicione pelo menos um item ao pedido', 'error');
+                return;
+            }
+
+            // Adicionando console.log para depuração
+            console.log('Tentando enviar novo pedido:', { cliente_id: clienteId, itens: itens });
+            fetch('index_atendente.php', { // Alterado para index_atendente.php
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    form: 'pedido',
+                    cliente_id: clienteId,
+                    itens: itens
+                })
+            })
+            .then(response => {
+                console.log('Resposta bruta do servidor (novo pedido):', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Dados da resposta (novo pedido):', data);
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    closeModal('pedidoModal'); // Correção para passar o ID completo do modal
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Erro no fetch (novo pedido):', error);
+                showNotification('Erro de comunicação com o servidor.', 'error');
+            });
+        }
+
+        // --- Funções para Cancelamento de Pedido ---
+        let pedidoIdToCancel = null;
+
+        function openCancelModal(pedidoId) {
+            pedidoIdToCancel = pedidoId;
+            document.getElementById('cancelPedidoId').textContent = pedidoId;
+            document.getElementById('currentCancelPedidoId').value = pedidoId;
+            openModal('cancelModal'); // Correção para passar o ID completo do modal
+        }
+
+        function confirmCancelPedido() {
+            const motivoId = document.getElementById('motivo_cancelamento').value;
+            if (!motivoId) {
+                showNotification('Por favor, selecione um motivo de cancelamento.', 'error');
+                return;
+            }
+
+            const senha = prompt("Por favor, digite a senha para cancelar o pedido:");
+            if (!senha) {
+                showNotification('Cancelamento abortado: senha não fornecida.', 'error');
+                return;
+            }
+
+            // Adicionando console.log para depuração
+            console.log(`Tentando cancelar pedido ${pedidoIdToCancel} com motivo ${motivoId}`);
+            fetch('index_atendente.php', { // Alterado para index_atendente.php
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    form: 'cancelar',
+                    pedido_id: pedidoIdToCancel,
+                    motivo_id: motivoId,
+                    senha: senha // Envia a senha para verificação no backend
+                })
+            })
+            .then(response => {
+                console.log('Resposta bruta do servidor (cancelar):', response);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Dados da resposta (cancelar):', data);
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    closeModal('cancelModal');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Erro no fetch (cancelar):', error);
+                showNotification('Erro de comunicação ao cancelar pedido.', 'error');
+            });
+        }
+
+        // --- Funções de Edição de Pedido ---
+        function editarPedido(id) {
+            const senha = prompt("Por favor, digite a senha para editar o pedido:");
+            if (!senha) {
+                showNotification('Edição abortada: senha não fornecida.', 'error');
+                return;
+            }
+
+            // Adicionando console.log para depuração
+            console.log(`Tentando buscar detalhes do pedido ${id} para edição.`);
+            fetch('buscar_pedido_detalhes.php?id=' + id) // Este endpoint não precisa de senha, mas o salvar sim
+                .then(res => {
+                    console.log('Resposta bruta do servidor (buscar detalhes):', res);
+                    return res.json();
                 })
                 .then(data => {
-                    console.log('Dados da resposta (cancelar):', data);
-                    showNotification(data.message, data.success ? 'success' : 'error');
+                    console.log('Dados da resposta (buscar detalhes):', data);
                     if (data.success) {
-                        closeModal('cancelModal');
-                        setTimeout(() => location.reload(), 1500);
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro no fetch (cancelar):', error);
-                    showNotification('Erro de comunicação ao cancelar pedido.', 'error');
-                });
-            }
+                        document.getElementById('edit_pedido_id').value = id;
+                        document.getElementById('edit_pedido_id_display').textContent = id;
+                        const container = document.getElementById('edit_itens_container');
+                        container.innerHTML = '';
 
-            // --- Funções de Edição de Pedido ---
-            function editarPedido(id) {
-                const senha = prompt("Por favor, digite a senha para editar o pedido:");
-                if (!senha) {
-                    showNotification('Edição abortada: senha não fornecida.', 'error');
-                    return;
-                }
-
-                // Adicionando console.log para depuração
-                console.log(`Tentando buscar detalhes do pedido ${id} para edição.`);
-                fetch('buscar_pedido_detalhes.php?id=' + id) // Este endpoint não precisa de senha, mas o salvar sim
-                    .then(res => {
-                        console.log('Resposta bruta do servidor (buscar detalhes):', res);
-                        return res.json();
-                    })
-                    .then(data => {
-                        console.log('Dados da resposta (buscar detalhes):', data);
-                        if (data.success) {
-                            document.getElementById('edit_pedido_id').value = id;
-                            document.getElementById('edit_pedido_id_display').textContent = id;
-                            const container = document.getElementById('edit_itens_container');
-                            container.innerHTML = '';
-
+                        // Verifica se há itens para popular, senão adiciona um vazio
+                        if (data.itens.length === 0) {
+                            showNotification('Nenhum item encontrado para este pedido. Adicione itens.', 'info');
+                            adicionarItemEdicao(data.produtos); // Passa os produtos para a função
+                        } else {
                             data.itens.forEach((item, index) => {
                                 const div = document.createElement('div');
-                                div.className = 'item-pedido'; // Pode ser 'item-pedido-edit' para estilos específicos
+                                div.className = 'item-pedido';
+                                let selectOptions = `<option value="">Selecione um produto</option>`;
+                                data.produtos.forEach(product => { // Usa data.produtos aqui
+                                    selectOptions += `<option value="${product.id}" data-preco="${product.preco}" ${product.id == item.produto_id ? 'selected' : ''}>${htmlspecialchars(product.nome)} - R$ ${parseFloat(product.preco).toFixed(2).replace('.', ',')}</option>`;
+                                });
+
                                 div.innerHTML = `
                                     <div class="form-group">
                                         <label>Produto</label>
-                                        <select name="produto_id_edit[]" class="form-control edit-produto-select" required data-item-id="${item.item_id}">
-                                            <option value="">Selecione um produto</option>
-                                            <?php foreach ($produtos as $produto): ?>
-                                                <option value="<?= $produto['id'] ?>" ${prod.id == item.produto_id ? 'selected' : ''} data-preco="<?= $produto['preco'] ?>">
-                                                    <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
-                                                </option>
-                                            <?php endforeach; ?>
+                                        <select name="produto_id_edit[]" class="form-control edit-produto-select" required data-item-id="${item.item_id || ''}">
+                                            ${selectOptions}
                                         </select>
                                     </div>
                                     <div class="form-group">
@@ -1523,7 +1601,7 @@ if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
                                         <label>Subtotal</label>
                                         <span class="edit-subtotal">R$ ${ (item.quantidade * parseFloat(data.produtos.find(p => p.id == item.produto_id)?.preco || 0)).toFixed(2).replace('.', ',') }</span>
                                     </div>
-                                    <button type="button" class="remove-item" onclick="removerItemEdicao(this, ${item.item_id})">
+                                    <button type="button" class="remove-item" onclick="removerItemEdicao(this, '${item.item_id || ''}')">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 `;
@@ -1532,203 +1610,268 @@ if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
                                 div.querySelector('.edit-produto-select').addEventListener('change', calcularSubtotalEdicao);
                                 div.querySelector('.edit-quantidade-input').addEventListener('input', calcularSubtotalEdicao);
                             });
-
-                            const addButton = document.createElement('button');
-                            addButton.type = 'button';
-                            addButton.className = 'btn primary';
-                            addButton.innerHTML = '<i class="fas fa-plus"></i> Adicionar Item';
-                            addButton.onclick = adicionarItemEdicao;
-                            container.appendChild(addButton);
-
-                            const totalDiv = document.createElement('div');
-                            totalDiv.style.fontWeight = 'bold';
-                            totalDiv.style.fontSize = '1.2em';
-                            totalDiv.innerHTML = '<label>Total do Pedido:</label><span id="totalPedidoEdicao">R$ 0,00</span>';
-                            container.appendChild(totalDiv);
-                            calcularTotalEdicao();
-
-                            // Armazena a senha para ser usada no salvarEdicaoPedido
-                            document.getElementById('modalEditarPedido').dataset.senha = senha; 
-
-                            openModal('modalEditarPedido');
-                        } else {
-                            showNotification(data.message, 'error');
                         }
-                    })
-                    .catch(error => {
-                        console.error('Erro ao buscar detalhes do pedido para edição:', error);
-                        showNotification('Erro ao carregar dados do pedido para edição.', 'error');
-                    });
-            }
 
-            function fecharModalEditar() {
-                closeModal('modalEditarPedido');
-                document.getElementById('modalEditarPedido').dataset.senha = ''; // Limpa a senha
-            }
+                        const addButton = document.createElement('button');
+                        addButton.type = 'button';
+                        addButton.className = 'btn primary';
+                        addButton.innerHTML = '<i class="fas fa-plus"></i> Adicionar Item';
+                        addButton.onclick = () => adicionarItemEdicao(data.produtos); // Passa os produtos para a função
+                        container.appendChild(addButton);
 
-            function salvarEdicaoPedido() {
-                const pedido_id = document.getElementById('edit_pedido_id').value;
-                const itens = [];
-                const senha = document.getElementById('modalEditarPedido').dataset.senha; // Recupera a senha
+                        const totalDiv = document.createElement('div');
+                        totalDiv.style.fontWeight = 'bold';
+                        totalDiv.style.fontSize = '1.2em';
+                        totalDiv.style.marginTop = '15px';
+                        totalDiv.innerHTML = '<label>Total do Pedido:</label><span id="totalPedidoEdicao">R$ 0,00</span>';
+                        container.appendChild(totalDiv);
+                        calcularTotalEdicao();
 
-                if (!senha) {
-                    showNotification('Erro de segurança: senha não encontrada para salvar edição.', 'error');
-                    return;
-                }
+                        // Armazena a senha para ser usada no salvarEdicaoPedido
+                        document.getElementById('modalEditarPedido').dataset.senha = senha; 
 
-                document.querySelectorAll('#edit_itens_container .item-pedido').forEach(itemDiv => { // Corrigido se a classe for 'item-pedido'
-                    const produtoId = itemDiv.querySelector('.edit-produto-select').value;
-                    const quantidade = itemDiv.querySelector('.edit-quantidade-input').value;
-                    const itemId = itemDiv.querySelector('.edit-produto-select').dataset.itemId;
-
-                    if (produtoId && quantidade) {
-                        itens.push({
-                            item_id: itemId,
-                            produto_id: produtoId,
-                            quantidade: parseInt(quantidade)
-                        });
-                    }
-                });
-
-                if (itens.length === 0) {
-                    showNotification('Adicione pelo menos um item ao pedido.', 'error');
-                    return;
-                }
-
-                // Adicionando console.log para depuração
-                console.log(`Tentando salvar edição do pedido ${pedido_id} com ${itens.length} itens.`);
-                fetch('index_atendente.php', { // Alterado para index_atendente.php
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        form: 'editar_pedido_completo',
-                        pedido_id: pedido_id,
-                        itens: itens,
-                        senha: senha // Envia a senha para verificação no backend
-                    })
-                })
-                .then(res => {
-                    console.log('Resposta bruta do servidor (salvar edição):', res);
-                    return res.json();
-                })
-                .then(data => {
-                    console.log('Dados da resposta (salvar edição):', data);
-                    showNotification(data.message, data.success ? 'success' : 'error');
-                    if (data.success) {
-                        fecharModalEditar();
-                        setTimeout(() => location.reload(), 1500);
+                        openModal('modalEditarPedido'); // Correção para passar o ID completo do modal
+                    } else {
+                        showNotification(data.message, 'error');
                     }
                 })
                 .catch(error => {
-                    console.error('Erro no fetch (salvar edição):', error);
-                    showNotification('Erro de comunicação ao salvar edição.', 'error');
+                    console.error('Erro ao buscar detalhes do pedido para edição:', error);
+                    showNotification('Erro ao carregar dados do pedido para edição.', 'error');
                 });
+        }
+
+        function fecharModalEditar() {
+            closeModal('modalEditarPedido');
+            document.getElementById('modalEditarPedido').dataset.senha = ''; // Limpa a senha
+        }
+
+        function salvarEdicaoPedido() {
+            const pedido_id = document.getElementById('edit_pedido_id').value;
+            const itens = [];
+            const senha = document.getElementById('modalEditarPedido').dataset.senha; // Recupera a senha
+
+            if (!senha) {
+                showNotification('Erro de segurança: senha não encontrada para salvar edição.', 'error');
+                return;
             }
 
-            function adicionarItemEdicao() {
-                const container = document.getElementById('edit_itens_container');
-                const novoItem = document.createElement('div');
-                novoItem.className = 'item-pedido'; // Pode ser 'item-pedido-edit'
-                novoItem.innerHTML = `
-                    <div class="form-group">
-                        <label>Produto</label>
-                        <select name="produto_id_edit[]" class="form-control edit-produto-select" required>
-                            <option value="">Selecione um produto</option>
-                            <?php foreach ($produtos as $produto): ?>
-                                <option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
-                                    <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Quantidade</label>
-                        <input type="number" name="quantidade_edit[]" class="form-control edit-quantidade-input" min="1" value="1" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Subtotal</label>
-                        <span class="edit-subtotal">R$ 0,00</span>
-                    </div>
-                    <button type="button" class="remove-item" onclick="removerItemEdicao(this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                `;
-                // Inserir antes do botão "Adicionar Item" e do total
-                const addButton = container.querySelector('.btn.primary');
-                const totalDiv = container.querySelector('#totalPedidoEdicao')?.parentNode; // Usar ? para evitar erro se não existir ainda
-                if (totalDiv) {
-                    container.insertBefore(novoItem, totalDiv);
-                } else {
-                    container.appendChild(novoItem);
+            document.querySelectorAll('#edit_itens_container .item-pedido').forEach(itemDiv => {
+                const produtoId = itemDiv.querySelector('.edit-produto-select').value;
+                const quantidade = itemDiv.querySelector('.edit-quantidade-input').value;
+                // O item_id pode ser nulo se for um item recém-adicionado
+                const itemId = itemDiv.querySelector('.edit-produto-select').dataset.itemId || null; 
+
+                if (produtoId && quantidade && parseInt(quantidade) > 0) {
+                    itens.push({
+                        item_id: itemId, // Inclui o item_id se existir
+                        produto_id: produtoId,
+                        quantidade: parseInt(quantidade)
+                    });
                 }
-                
-
-                novoItem.querySelector('.edit-produto-select').addEventListener('change', calcularSubtotalEdicao);
-                novoItem.querySelector('.edit-quantidade-input').addEventListener('input', calcularSubtotalEdicao);
-                calcularTotalEdicao();
-            }
-
-            function removerItemEdicao(btn, itemId = null) {
-                const item = btn.closest('.item-pedido'); // Pode ser 'item-pedido-edit'
-                if (document.querySelectorAll('#edit_itens_container .item-pedido').length > 1) { // Corrigido a classe
-                    item.remove();
-                    calcularTotalEdicao();
-                } else {
-                    showNotification('O pedido deve ter pelo menos um item.', 'error');
-                }
-            }
-
-            function calcularSubtotalEdicao(event) {
-                const item = event.target.closest('.item-pedido'); // Pode ser 'item-pedido-edit'
-                const select = item.querySelector('.edit-produto-select');
-                const input = item.querySelector('.edit-quantidade-input');
-                const subtotalSpan = item.querySelector('.edit-subtotal');
-
-                const preco = parseFloat(select.selectedOptions[0]?.dataset.preco || 0);
-                const quantidade = parseInt(input.value) || 0;
-                const subtotal = preco * quantidade;
-
-                subtotalSpan.textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
-                calcularTotalEdicao();
-            }
-
-            function calcularTotalEdicao() {
-                let total = 0;
-                document.querySelectorAll('#edit_itens_container .item-pedido').forEach(item => { // Corrigido a classe
-                    const subtotalText = item.querySelector('.edit-subtotal').textContent;
-                    const subtotal = parseFloat(subtotalText.replace('R$ ', '').replace(',', '.')) || 0;
-                    total += subtotal;
-                });
-                document.getElementById('totalPedidoEdicao').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
-            }
-
-            // Helper para htmlspecialchars no JS (não nativo no JS, mas útil para simular)
-            function htmlspecialchars(str) {
-                const map = {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#039;'
-                };
-                return str.replace(/[&<>"']/g, function(m) { return map[m]; });
-            }
-
-
-            // Inicializa os event listeners quando o DOM estiver carregado
-            document.addEventListener('DOMContentLoaded', function() {
-                // Event listeners para o primeiro item do pedido (modal de novo pedido)
-                // Certifique-se de que estes elementos existem antes de adicionar o listener
-                document.querySelector('.produto-select')?.addEventListener('change', calcularSubtotal);
-                document.querySelector('.quantidade-input')?.addEventListener('input', calcularSubtotal);
-                
-                // Fecha o modal ao pressionar ESC
-                document.addEventListener('keydown', function(event) {
-                    if (event.key === 'Escape') {
-                        closeModal();
-                    }
-                });
             });
-        </script>
-    </body>
-    </html>
+
+            if (itens.length === 0) {
+                showNotification('Adicione pelo menos um item válido ao pedido.', 'error');
+                return;
+            }
+
+            // Adicionando console.log para depuração
+            console.log(`Tentando salvar edição do pedido ${pedido_id} com ${itens.length} itens.`);
+            fetch('index_atendente.php', { // Alterado para index_atendente.php
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    form: 'editar_pedido_completo',
+                    pedido_id: pedido_id,
+                    itens: itens,
+                    senha: senha // Envia a senha para verificação no backend
+                })
+            })
+            .then(res => {
+                console.log('Resposta bruta do servidor (salvar edição):', res);
+                return res.json();
+            })
+            .then(data => {
+                console.log('Dados da resposta (salvar edição):', data);
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    fecharModalEditar();
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Erro no fetch (salvar edição):', error);
+                showNotification('Erro de comunicação ao salvar edição.', 'error');
+            });
+        }
+
+        function adicionarItemEdicao(produtosData) { // Agora recebe produtosData como argumento
+            const container = document.getElementById('edit_itens_container');
+            const novoItem = document.createElement('div');
+            novoItem.className = 'item-pedido';
+            let selectOptions = `<option value="">Selecione um produto</option>`;
+            if (produtosData) { // Verifica se produtosData foi passado
+                produtosData.forEach(product => { // Itera sobre os produtos passados
+                    selectOptions += `<option value="${product.id}" data-preco="${product.preco}">
+                                        ${htmlspecialchars(product.nome)} - R$ ${parseFloat(product.preco).toFixed(2).replace('.', ',')}
+                                    </option>`;
+                });
+            } else {
+                // Se produtosData não for passado, use o PHP array global (menos ideal, mas fallback)
+                <?php foreach ($produtos as $produto): ?>
+                    selectOptions += `<option value="<?= $produto['id'] ?>" data-preco="<?= $produto['preco'] ?>">
+                                        <?= htmlspecialchars($produto['nome']) ?> - R$ <?= number_format($produto['preco'], 2, ',', '.') ?>
+                                    </option>`;
+                <?php endforeach; ?>
+            }
+
+            novoItem.innerHTML = `
+                <div class="form-group">
+                    <label>Produto</label>
+                    <select name="produto_id_edit[]" class="form-control edit-produto-select" required>
+                        ${selectOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade</label>
+                    <input type="number" name="quantidade_edit[]" class="form-control edit-quantidade-input" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Subtotal</label>
+                    <span class="edit-subtotal">R$ 0,00</span>
+                </div>
+                <button type="button" class="remove-item" onclick="removerItemEdicao(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            // Inserir antes do botão "Adicionar Item" e do total, se existirem
+            const addButton = container.querySelector('.btn.primary');
+            const totalDiv = container.querySelector('#totalPedidoEdicao')?.parentNode;
+            if (totalDiv) {
+                container.insertBefore(novoItem, totalDiv);
+            } else if (addButton) { // Se não tiver totalDiv, insere antes do botão Adicionar
+                container.insertBefore(novoItem, addButton);
+            }
+            else { // Caso contrário, apenas adiciona no final
+                container.appendChild(novoItem);
+            }
+            
+            novoItem.querySelector('.edit-produto-select').addEventListener('change', calcularSubtotalEdicao);
+            novoItem.querySelector('.edit-quantidade-input').addEventListener('input', calcularSubtotalEdicao);
+            calcularTotalEdicao();
+        }
+
+        function removerItemEdicao(btn, itemId = null) {
+            const item = btn.closest('.item-pedido');
+            if (document.querySelectorAll('#edit_itens_container .item-pedido').length > 1) {
+                item.remove();
+                calcularTotalEdicao();
+            } else {
+                showNotification('O pedido deve ter pelo menos um item.', 'error');
+            }
+        }
+
+        function calcularSubtotalEdicao(event) {
+            const item = event.target.closest('.item-pedido');
+            const select = item.querySelector('.edit-produto-select');
+            const input = item.querySelector('.edit-quantidade-input');
+            const subtotalSpan = item.querySelector('.edit-subtotal');
+
+            const preco = parseFloat(select.selectedOptions[0]?.dataset.preco || 0);
+            const quantidade = parseInt(input.value) || 0;
+            const subtotal = preco * quantidade;
+
+            subtotalSpan.textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
+            calcularTotalEdicao();
+        }
+
+        function calcularTotalEdicao() {
+            let total = 0;
+            document.querySelectorAll('#edit_itens_container .item-pedido').forEach(item => {
+                const subtotalText = item.querySelector('.edit-subtotal').textContent;
+                const subtotal = parseFloat(subtotalText.replace('R$ ', '').replace(',', '.')) || 0;
+                total += subtotal;
+            });
+            document.getElementById('totalPedidoEdicao').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+        }
+
+        let pedidoIdToFechar = null;
+
+        function openFecharPedidoModal(pedidoId) {
+            pedidoIdToFechar = pedidoId;
+            document.getElementById('fecharPedidoIdDisplay').textContent = pedidoId;
+            document.getElementById('currentFecharPedidoId').value = pedidoId;
+            openModal('fecharPedidoModal');
+        }
+
+        function confirmFecharPedido() {
+            const formaPagamentoId = document.getElementById('forma_pagamento_fechar_pedido').value;
+            if (!formaPagamentoId) {
+                showNotification('Por favor, selecione uma forma de pagamento.', 'error');
+                return;
+            }
+
+            const senha = prompt("Por favor, digite a senha para fechar o pedido:");
+            if (!senha) {
+                showNotification('Fechamento abortado: senha não fornecida.', 'error');
+                return;
+            }
+
+            fetch('index_atendente.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    form: 'fechar_pedido',
+                    pedido_id: pedidoIdToFechar,
+                    forma_pagamento_id: parseInt(formaPagamentoId),
+                    senha: senha // Envia a senha para verificação no backend
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                showNotification(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    closeModal('fecharPedidoModal');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao fechar pedido:', error);
+                showNotification('Erro de comunicação ao fechar pedido.', 'error');
+            });
+        }
+
+
+        // Helper para htmlspecialchars no JS (não nativo no JS, mas útil para simular)
+        function htmlspecialchars(str) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return str.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+
+        // Inicializa os event listeners quando o DOM estiver carregado
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners para o primeiro item do pedido (modal de novo pedido)
+            // Certifique-se de que estes elementos existem antes de adicionar o listener
+            document.querySelector('.produto-select')?.addEventListener('change', calcularSubtotal);
+            document.querySelector('.quantidade-input')?.addEventListener('input', calcularSubtotal);
+            
+            // Fecha o modal ao pressionar ESC
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,8 +1,8 @@
 <?php
 // buscar_pedido_detalhes.php
 
-require_once '../conexao.php';
-require_once '../Geral/funcoes.php'; // Inclui FuncoesGerente
+require_once '../Geral/conexao.php';
+require_once '../Gerente/funcoesGerente.php';
 
 header('Content-Type: application/json');
 
@@ -13,11 +13,11 @@ $pedidoId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if ($pedidoId > 0) {
     $mysqliConnection = getConnection();
 
-    // Buscar itens do pedido
+    // Tabela 'ItensPedido' e 'Produtos'
     $stmt = $mysqliConnection->prepare(
         "SELECT ip.id AS item_id, ip.produto_id, ip.quantidade, ip.preco_unitario, p.nome AS produto_nome
-         FROM itens_pedido ip
-         JOIN produtos p ON ip.produto_id = p.id
+         FROM ItensPedido ip
+         JOIN Produtos p ON ip.produto_id = p.id
          WHERE ip.pedido_id = ?"
     );
     if ($stmt) {
@@ -27,7 +27,6 @@ if ($pedidoId > 0) {
         $itens = $result->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
 
-        // Buscar todos os produtos (para preencher o select de edição) - Chamada de método estático
         $produtos = FuncoesGerente::buscarProdutos();
 
         $response['success'] = true;
