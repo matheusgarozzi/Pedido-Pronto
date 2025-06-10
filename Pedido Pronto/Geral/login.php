@@ -51,13 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         header('Location: ../Gerente/index_gerente.php');
                         break;
                     case 'atendente':
-                        header('Location: index.php');
+                        header('Location: ../Gerente/index_atendente.php');
                         break;
                     case 'cozinheiro':
                         header('Location: ../Geral/index_cozinha.php');
                         break;
                     default:
-                        header('Location: index.php');
+                        header('Location: ../Geral/index_cozinha.php');
                 }
                 exit();
             } else {

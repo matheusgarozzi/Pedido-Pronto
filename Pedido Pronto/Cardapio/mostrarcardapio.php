@@ -1,6 +1,8 @@
 <?php
+// Cardapio/mostrarcardapio.php
+
 require_once '../Geral/conexao.php'; 
-require_once '../geral/funcoes.php'; 
+require_once '../Geral/funcoes.php'; // Ajuste o caminho conforme a localização do seu 'funcoes.php'
 
 @session_start();
 
@@ -13,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['adicionar_estoque']))
     $quantidade = intval($_POST['quantidade']);
 
     if ($quantidade > 0) {
-        if (adicionarEstoque($produto_id, $quantidade)) {
+        if (adicionarEstoque($produto_id, $quantidade)) { 
             $mensagem = "Estoque atualizado com sucesso!";
         } else {
             $erro = "Erro ao atualizar o estoque.";
@@ -24,7 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['adicionar_estoque']))
 }
 
 // Sempre busca os produtos após o processamento do POST
-$produtos = buscarProdutosAtivos();
+// FUNÇÃO BUSCARPRODUTOSATIVOS AGORA SELECIONA 'gramas'
+$produtos = buscarProdutosAtivos(); 
 ?>
 
 <!DOCTYPE html>
@@ -36,6 +39,7 @@ $produtos = buscarProdutosAtivos();
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* ... (seu CSS existente, mantido intacto) ... */
         :root {
             --primary: #3498db;
             --primary-dark: #2980b9;
@@ -349,6 +353,12 @@ $produtos = buscarProdutosAtivos();
             margin-bottom: 10px;
         }
 
+        .gramas { /* Adicione este estilo para a exibição de gramas */
+            font-size: 0.9rem;
+            color: var(--gray);
+            margin-bottom: 10px;
+        }
+
         .estoque-info {
             display: flex;
             align-items: center;
@@ -546,7 +556,7 @@ $produtos = buscarProdutosAtivos();
 <body>
     <header>
         <div class="header-content">
-            <h1><a href="index.php" style="color: white; text-decoration: none;"><i class="fas fa-utensils"></i> PedidoPronto</a></h1>
+            <h1><a href="../Gerente/index_gerente.php" style="color: white; text-decoration: none;"><i class="fas fa-utensils"></i> PedidoPronto</a></h1>
             <div class="header-buttons">
                 <button class="btn primary" onclick="location.href='../Gerente/index_gerente.php'">
                     <i class="fas fa-home"></i> Início
@@ -592,9 +602,9 @@ $produtos = buscarProdutosAtivos();
         <div class="cardapio-container">
             <?php if (!empty($produtos)): ?>
                 <?php foreach ($produtos as $produto): ?>
-                    <div class="produto-card">
+                    <div class="produto-card" data-id="<?= htmlspecialchars($produto['id']) ?>">
                         <div class="produto-imagem-container">
-                            <img src="<?= htmlspecialchars($produto['imagem']) ?>" 
+                            <img src="<?= htmlspecialchars($produto['imagem'] ?? 'placeholder.png') ?>" 
                                  alt="<?= htmlspecialchars($produto['nome']) ?>" 
                                  class="produto-imagem">
                             
@@ -603,10 +613,10 @@ $produtos = buscarProdutosAtivos();
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 <div class="card-dropdown">
-                                    <button class="edit" onclick="editarProduto(<?= $produto['id'] ?>)">
+                                    <button class="edit" onclick="editarProduto(<?= htmlspecialchars($produto['id']) ?>)">
                                         <i class="fas fa-edit"></i> Editar
                                     </button>
-                                    <button class="delete" onclick="confirmarExclusao(<?= $produto['id'] ?>)">
+                                    <button class="delete" onclick="confirmarExclusao(<?= htmlspecialchars($produto['id']) ?>)">
                                         <i class="fas fa-trash"></i> Remover
                                     </button>
                                 </div>
@@ -619,13 +629,15 @@ $produtos = buscarProdutosAtivos();
                             
                             <div class="produto-preco">R$ <?= number_format($produto['preco'], 2, ',', '.') ?></div>
                             
+                            <div class="gramas"><?= htmlspecialchars($produto['gramas'] ?? '') ?></div>
+                            
                             <div class="estoque-info">
                                 <span class="estoque-label">Estoque:</span>
                                 <span class="estoque-valor"><?= isset($produto['estoque']) ? intval($produto['estoque']) : 0 ?></span>
                             </div>
 
                             <form method="POST" class="add-estoque-form" onsubmit="return validarEstoque(this);">
-                                <input type="hidden" name="produto_id" value="<?= $produto['id'] ?>">
+                                <input type="hidden" name="produto_id" value="<?= htmlspecialchars($produto['id']) ?>">
                                 <input type="number" name="quantidade" min="1" placeholder="Quantidade" required>
                                 <button type="submit" name="adicionar_estoque">
                                     <i class="fas fa-plus"></i> Adicionar
@@ -662,14 +674,16 @@ $produtos = buscarProdutosAtivos();
             dropdown.classList.toggle('show');
         }
 
-        document.addEventListener('click', function() {
-            document.querySelectorAll('.card-dropdown').forEach(dd => {
-                dd.classList.remove('show');
-            });
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.card-dropdown') && !event.target.closest('.card-menu-btn')) {
+                document.querySelectorAll('.card-dropdown').forEach(dropdown => {
+                    dropdown.classList.remove('show');
+                });
+            }
         });
 
         function editarProduto(produtoId) {
-            showNotification('Abrindo produto para edição...', 'success');
+            showNotification('Abrindo produto para edição...', 'info'); 
             setTimeout(() => {
                 window.location.href = 'adicionarcardapio.php?editar=' + produtoId;
             }, 800);
@@ -677,18 +691,28 @@ $produtos = buscarProdutosAtivos();
 
         function confirmarExclusao(produtoId) {
             if (confirm(`Tem certeza que deseja remover este produto do cardápio? Esta ação não pode ser desfeita.`)) {
-                showNotification('Excluindo produto...', 'success');
-                
-                // Simulação da exclusão
-                setTimeout(() => {
-                    showNotification('Produto removido com sucesso!', 'success');
-                    
-                    // Simulação de recarregamento da página após exclusão
-                    setTimeout(() => {
-                        const card = document.querySelector(`.produto-card[data-id="${produtoId}"]`);
-                        if (card) card.remove();
+                showNotification('Excluindo produto...', 'info'); 
+
+                fetch('../Geral/funcoes.php', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        acao: 'excluir_produto',
+                        produto_id: produtoId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification(data.message, 'success');
                         
-                        // Verifica se não há mais produtos
+                        const card = document.querySelector(`.produto-card[data-id="${produtoId}"]`);
+                        if (card) {
+                            card.remove();
+                        }
+                        
                         if (document.querySelectorAll('.produto-card').length === 0) {
                             document.querySelector('.cardapio-container').innerHTML = `
                                 <div class="empty-state">
@@ -701,40 +725,38 @@ $produtos = buscarProdutosAtivos();
                                 </div>
                             `;
                         }
-                    }, 500);
-                }, 800);
+                    } else {
+                        showNotification(data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao excluir produto:', error);
+                    showNotification('Erro de comunicação ao tentar excluir o produto.', 'error');
+                });
             }
         }
 
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
             notification.textContent = message;
-            notification.className = 'notification ' + (type === 'error' ? 'error' : '');
+            notification.className = 'notification ' + type; 
             notification.style.display = 'block';
             
             setTimeout(() => { 
                 notification.style.display = 'none'; 
+                notification.className = 'notification'; 
             }, 3000);
         }
 
         function validarEstoque(form) {
             const qtdInput = form.quantidade;
-            if (qtdInput.value === "" || qtdInput.value <= 0) {
-                showNotification("Informe uma quantidade válida para adicionar ao estoque.", 'error');
+            if (qtdInput.value === "" || parseInt(qtdInput.value) <= 0 || isNaN(parseInt(qtdInput.value))) {
+                showNotification("Informe uma quantidade válida e positiva para adicionar ao estoque.", 'error');
                 qtdInput.focus();
                 return false;
             }
             return true;
         }
-        
-        // Fechar dropdowns ao clicar fora
-        document.addEventListener('click', function(event) {
-            if (!event.target.closest('.card-dropdown') && !event.target.closest('.card-menu-btn')) {
-                document.querySelectorAll('.card-dropdown').forEach(dropdown => {
-                    dropdown.classList.remove('show');
-                });
-            }
-        });
     </script>
 </body>
 </html>

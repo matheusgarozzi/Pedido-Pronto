@@ -1,58 +1,78 @@
 <?php
-// Conexão com o banco de dados
-$servername = "localhost";
-$username = "root";
-$password = "";
-$database = "PedidoProntoDB";
+// Cardapio/adicionarcardapio.php
 
-$conn = new mysqli($servername, $username, $password, $database);
+// Inclui o arquivo de funções que contém as operações de CRUD para produtos
+require_once '../Geral/funcoes.php'; // Ajuste o caminho conforme a localização do seu 'funcoes.php'
 
-// Checar conexão
-if ($conn->connect_error) {
-    die("Conexão falhou: " . $conn->connect_error);
+$produtoParaEditar = null;
+$idProdutoEdicao = null;
+$mensagemErro = '';
+
+// Lógica para carregar dados do produto para edição (se um ID for passado via GET)
+if (isset($_GET['editar']) && is_numeric($_GET['editar'])) {
+    $idProdutoEdicao = intval($_GET['editar']);
+    $produtoParaEditar = buscarProdutoPorId($idProdutoEdicao); // Usa a nova função
+    if (!$produtoParaEditar) {
+        $mensagemErro = "Produto não encontrado para edição.";
+        $idProdutoEdicao = null; // Reseta se não encontrar
+    }
 }
 
-// Se o formulário foi enviado
+// Processa o formulário quando enviado (POST)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $nome = $_POST['nome'];
     $descricao = $_POST['descricao'];
-    $preco = $_POST['preco'];
+    // Converte o preço para float, tratando vírgula como decimal se necessário
+    $preco = floatval(str_replace(',', '.', $_POST['preco'])); 
+    $gramas = $_POST['gramas']; // Captura o valor de 'gramas'
     $ativo = isset($_POST['ativo']) ? 1 : 0;
-    
-    // Upload da imagem
-    $imagem = null;
-    if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] == 0) {
-        $targetDir = "uploads/"; // pasta onde as imagens serão salvas
+    $success = false;
+
+    // Lógica de upload da imagem
+    // Mantém a imagem existente se não for enviada uma nova ou se houver erro no upload da nova
+    $imagem = $produtoParaEditar['imagem'] ?? null; 
+    if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] == 0 && $_FILES['imagem']['size'] > 0) {
+        $targetDir = "uploads/"; // Pasta onde as imagens serão salvas (relativo a 'adicionarcardapio.php')
+        // Cria a pasta se não existir
         if (!file_exists($targetDir)) {
-            mkdir($targetDir, 0755, true); // cria a pasta se não existir
+            mkdir($targetDir, 0755, true);
         }
 
         $nomeImagem = basename($_FILES["imagem"]["name"]);
-        $targetFile = $targetDir . uniqid() . "-" . $nomeImagem; // nome único
+        $targetFile = $targetDir . uniqid() . "-" . $nomeImagem; // Gera um nome único para a imagem
+
         if (move_uploaded_file($_FILES["imagem"]["tmp_name"], $targetFile)) {
             $imagem = $targetFile;
+        } else {
+            $mensagemErro = "Erro ao fazer upload da imagem. Tente novamente.";
         }
     }
 
-    $sql = "INSERT INTO Produtos (nome, descricao, preco, ativo, imagem) 
-            VALUES ('$nome', '$descricao', '$preco', '$ativo', '$imagem')";
+    if (empty($mensagemErro)) { // Procede apenas se não houve erro no upload
+        if ($idProdutoEdicao) { // Se estamos editando um produto existente
+            // Passa 'gramas' para a função editarProduto
+            $success = editarProduto($idProdutoEdicao, $nome, $descricao, $preco, $gramas, $ativo, $imagem); 
+        } else { // Se estamos adicionando um novo produto
+            // Passa 'gramas' para a função cadastrarProduto
+            $success = cadastrarProduto($nome, $descricao, $preco, $gramas, $ativo, $imagem); 
+        }
 
-if ($conn->query($sql) === TRUE) {
-    header("Location: ../Gerente/index_gerente.php"); // redireciona após salvar
-    exit; // encerra o script após redirecionar
-} else {
-    echo "<p style='color:red;'>Erro: " . $conn->error . "</p>";
+        if ($success) {
+            // Redireciona para o painel do gerente (ou mostrarcardapio.php se preferir)
+            header("Location: ../Gerente/index_gerente.php"); 
+            exit;
+        } else {
+            $mensagemErro = "Erro ao salvar o produto no banco de dados. Verifique os logs do servidor.";
+        }
+    }
 }
-}
-
-$conn->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Adicionar Produto</title>
+    <title><?= ($idProdutoEdicao ? 'Editar' : 'Adicionar') ?> Produto</title>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -199,23 +219,36 @@ $conn->close();
 </head>
 <body>
 
-
-
 <form method="POST" enctype="multipart/form-data">
+    <h1><?= ($idProdutoEdicao ? 'Editar' : 'Adicionar') ?> Produto</h1>
+    <?php if ($mensagemErro): ?>
+        <div class="error-message"><?= htmlspecialchars($mensagemErro) ?></div>
+    <?php endif; ?>
+
+    <?php if ($idProdutoEdicao): ?>
+        <input type="hidden" name="produto_id_edicao" value="<?= htmlspecialchars($idProdutoEdicao) ?>">
+    <?php endif; ?>
+
     <label for="nome">Nome do Produto:</label>
-    <input type="text" name="nome" id="nome" required>
+    <input type="text" name="nome" id="nome" value="<?= htmlspecialchars($produtoParaEditar['nome'] ?? '') ?>" required>
 
     <label for="descricao">Descrição:</label>
-    <textarea name="descricao" id="descricao" rows="4"></textarea>
+    <textarea name="descricao" id="descricao" rows="4"><?= htmlspecialchars($produtoParaEditar['descricao'] ?? '') ?></textarea>
 
     <label for="preco">Preço:</label>
-    <input type="number" name="preco" id="preco" step="0.01" required>
+    <input type="number" name="preco" id="preco" step="0.01" value="<?= htmlspecialchars($produtoParaEditar['preco'] ?? '') ?>" required>
 
-    <label for="imagem">Imagem do Produto:</label>
+    <label for="gramas">Gramas (ou Unidade de Medida):</label>
+    <input type="text" name="gramas" id="gramas" value="<?= htmlspecialchars($produtoParaEditar['gramas'] ?? '') ?>">
+
+    <?php if ($produtoParaEditar && $produtoParaEditar['imagem']): ?>
+        <p style="margin-top: 15px;">Imagem atual: <img src="<?= htmlspecialchars($produtoParaEditar['imagem']) ?>" alt="Imagem atual" style="max-width: 100px; max-height: 100px; vertical-align: middle;"></p>
+    <?php endif; ?>
+    <label for="imagem">Nova Imagem do Produto (deixe em branco para manter a atual):</label>
     <input type="file" name="imagem" id="imagem" accept="image/*">
 
     <label for="ativo">Ativo:</label>
-    <input type="checkbox" name="ativo" id="ativo" checked>
+    <input type="checkbox" name="ativo" id="ativo" <?= (($produtoParaEditar['ativo'] ?? 1) == 1) ? 'checked' : '' ?>>
 
     <button type="submit">Salvar Produto</button>
 </form>

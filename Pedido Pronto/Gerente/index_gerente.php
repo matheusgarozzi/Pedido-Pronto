@@ -764,7 +764,7 @@ if ($caixa['status'] === 'aberto' && $caixa['id'] !== null) {
                         <i class="fas fa-cash-register"></i> Fechar Caixa
                     </button>
                 <?php endif; ?>
-                <button class="btn logout" onclick="location.href='../Geral/logout.php'">
+                <button class="btn logout" onclick="location.href='../Geral/login.php'">
                     <i class="fas fa-sign-out-alt"></i> Sair
                 </button>
             </div>

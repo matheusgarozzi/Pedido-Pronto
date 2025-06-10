@@ -192,7 +192,7 @@ $pedidos = buscarPedidos(); // Usando a função do funcoes.php
 <body>
     <header>
         <div class="header-content">
-            <h1><a href="index.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
+            <h1><a href="../Gerente/index_gerente.php" style="color: white; text-decoration: none;">PedidoPronto</a></h1>
             <div class="header-buttons">
                 <button class="btn" onclick="location.href='../Gerente/index_gerente.php'">
                     <i class="fas fa-home"></i> Início

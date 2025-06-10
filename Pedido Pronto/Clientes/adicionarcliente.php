@@ -155,16 +155,17 @@
             $nome = $conn->real_escape_string($_POST['nome']);
             $telefone = $conn->real_escape_string($_POST['telefone']);
             $endereco = $conn->real_escape_string($_POST['endereco']);
+            $numero_da_sorte = $conn->real_escape_string($_POST['numero_da_sorte']);
 
             if (empty($nome)) {
                 echo "<p class='error-message'>Nome é obrigatório.</p>";
             }
 
             if (!empty($nome)) {
-                $sql = "INSERT INTO Clientes (nome, telefone, endereco) 
-                        VALUES (?, ?, ?)";
+                $sql = "INSERT INTO Clientes (nome, telefone, endereco, numero_da_sorte) 
+                        VALUES (?, ?, ?, ?)";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("sss", $nome, $telefone, $endereco);
+                $stmt->bind_param("ssss", $nome, $telefone, $endereco, $numero_da_sorte);
 
                 if ($stmt->execute()) {
                     header("Location: clientes.php");
@@ -186,6 +187,9 @@
 
         <label for="endereco">Endereço:</label>
         <textarea name="endereco" id="endereco" rows="4"></textarea>
+
+        <label for="numero_da_sorte"> Numero Da Sorte : </label>
+        <textarea name="numero_da_sorte" id="numero_da_sorte" rows="4"></textarea>
 
         <button type="submit">Salvar Cliente</button>
     </form>

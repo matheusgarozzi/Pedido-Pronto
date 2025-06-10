@@ -508,7 +508,7 @@ $clientes = $conn->query("SELECT * FROM Clientes");
 <body>
     <header>
         <div class="header-content">
-            <h1><a href="index_gerente.php" style="color: white; text-decoration: none;"><i class="fas fa-utensils"></i> PedidoPronto</a></h1>
+            <h1><a href="../Gerente/index_gerente.php" style="color: white; text-decoration: none;"><i class="fas fa-utensils"></i> PedidoPronto</a></h1>
             <div class="header-buttons">
                 <button class="btn primary" onclick="location.href='../Gerente/index_gerente.php'">
                     <i class="fas fa-home"></i> Início
@@ -583,6 +583,8 @@ $clientes = $conn->query("SELECT * FROM Clientes");
                                         <textarea name="editar_endereco" rows="2"><?= htmlspecialchars($cliente['endereco']) ?></textarea>
                                     </td>
                                     <td>
+                                        
+                                    <td>
                                         <button type="submit" class="btn-save">
                                             <i class="fas fa-save"></i> Salvar
                                         </button>
@@ -594,6 +596,7 @@ $clientes = $conn->query("SELECT * FROM Clientes");
                                 <td><?= htmlspecialchars($cliente['nome']) ?></td>
                                 <td><?= htmlspecialchars($cliente['telefone']) ?></td>
                                 <td><?= htmlspecialchars($cliente['endereco']) ?></td>
+                                <td><?= htmlspecialchars($cliente['numero_da_sorte']) ?></td:>                               
                                 <td style="display: flex; gap: 10px;">
                                     <a href="?editar=<?= $cliente['id'] ?>" class="btn-action btn-edit">
                                         <i class="fas fa-edit"></i> Editar
